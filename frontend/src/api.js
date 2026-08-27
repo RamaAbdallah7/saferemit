@@ -78,4 +78,5 @@ export const STEP_LABELS = {
   escalation_decision: "Escalation decision",
   device_status: "Device Status",
   location_verification: "Location Verification",
+  ai_assessment: "AI analyst (Gemini)",
 };

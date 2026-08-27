@@ -1,70 +1,56 @@
 """
-Turns the agent's signal trace into a plain-language rationale.
+Builds the plain-language rationale shown with the decision.
 
-Default mode is fully deterministic (template-based) so the demo works
-with zero API keys and zero network dependency — good for a reliable
-3-minute demo video where you can't afford a flaky API call.
-
-Optional mode: if GEMINI_API_KEY is set in the environment, `explain()`
-asks Gemini to rewrite the same trace into a tighter, more natural
-sentence. The deterministic summary is always computed first and passed
-in as ground truth, so a failed/slow Gemini call never changes the
-decision — only the wording of the explanation, with automatic fallback
-to the template if the call errors or times out.
-
-Gemini / Google AI Studio is on the hackathon's AI Resource & Tooling
-Guide (section 3, "Hosted APIs with a free tier" — Gemini 2.5 Flash/Pro).
-If you still prefer zero external calls, leave GEMINI_API_KEY unset and
-the deterministic explainer is your rationale generator, no code changes
-needed.
+Three cases:
+  * rules only (no Gemini key, or the LLM call failed) — a deterministic
+    sentence assembled from the scored signals. This always works, so the
+    demo never depends on an external call.
+  * rules and AI analyst agree — lead with the AI's reasoning, note the
+    agreement as added confidence.
+  * they disagree — state both calls, that the stricter one was taken,
+    and flag it for human review.
 """
-import requests
-
-from .. import config
-
-GEMINI_API_KEY = config.GEMINI_API_KEY
-GEMINI_MODEL = config.GEMINI_MODEL
-GEMINI_TIMEOUT_SECONDS = config.GEMINI_TIMEOUT_SECONDS
 
 
-def _template_rationale(decision: str, score: int, trace: list[dict]) -> str:
+def _driving_reasons(trace: list[dict]) -> str:
+    return "; ".join(step["reason"] for step in trace if step.get("points", 0) > 0)
+
+
+def _rules_sentence(decision: str, score: int, trace: list[dict]) -> str:
     score = min(100, score)
-    driving = [step for step in trace if step["points"] > 0]
+    reasons = _driving_reasons(trace)
     if decision == "ALLOW":
-        if not driving:
-            return "All signals check out — verified number, no recent SIM swap, known device, matching location. Allowed with no friction."
-        return "Minor signals noted but well below the risk threshold — allowed with no added friction."
-
-    reasons = "; ".join(step["reason"] for step in driving)
+        return (
+            "All signals check out — verified number, no recent SIM swap, known device, "
+            "matching location. Allowed with no friction."
+            if not reasons
+            else "Minor signals noted but well below the risk threshold — allowed with no added friction."
+        )
     if decision == "BLOCK":
         return f"Blocked (risk score {score}/100): {reasons}"
     return f"Step-up verification required (risk score {score}/100): {reasons}"
 
 
-def explain(decision: str, score: int, trace: list[dict]) -> dict:
-    """Returns {"text": str, "source": "template" | "gemini"}."""
-    score = min(100, score)
-    template_text = _template_rationale(decision, score, trace)
+def _label(decision: str) -> str:
+    return decision.replace("_", "-")
 
-    if not GEMINI_API_KEY:
-        return {"text": template_text, "source": "template"}
 
-    try:
-        prompt = (
-            "Rewrite this fraud-decision rationale in one tight, plain-language "
-            "sentence for a bank fraud analyst. Keep every fact, change nothing "
-            f"about the decision itself.\n\nDecision: {decision}\n"
-            f"Risk score: {score}/100\nSignals: {template_text}"
-        )
-        resp = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-            params={"key": GEMINI_API_KEY},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=GEMINI_TIMEOUT_SECONDS,
-        )
-        resp.raise_for_status()
-        text = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return {"text": text, "source": "gemini"}
-    except Exception:
-        # Never let a flaky LLM call break the decision — fall back silently.
-        return {"text": template_text, "source": "template"}
+def explain(decision, score, trace, *, ai=None, agreement=None, rules_decision=None) -> dict:
+    """Returns {"text": str, "source": "rules" | "gemini" | "reconciled"}."""
+    if not ai:
+        return {"text": _rules_sentence(decision, score, trace), "source": "rules"}
+
+    ai_reason = ai.get("reasoning") or "signal combination assessed."
+    if agreement:
+        return {
+            "text": f"{ai_reason} The rules score agrees — confidence in the {_label(decision)} call is high.",
+            "source": "gemini",
+        }
+    return {
+        "text": (
+            f"Split call: the rules score points to {_label(rules_decision or decision)}, "
+            f"the AI analyst to {_label(ai['decision'])} — {ai_reason} "
+            f"Taking the stricter decision ({_label(decision)}) and flagging for human review."
+        ),
+        "source": "reconciled",
+    }

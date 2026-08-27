@@ -42,8 +42,11 @@ USE_LIVE_CAMARA = bool(NAC_API_KEY)
 # Listed in the Resource & Tooling Guide, section 3 ("Hosted APIs with a
 # free tier"). Optional — rationale falls back to a deterministic template.
 GEMINI_API_KEY = _clean("GEMINI_API_KEY")
-GEMINI_MODEL = _clean("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_TIMEOUT_SECONDS = float(_clean("GEMINI_TIMEOUT_SECONDS", "4"))
+GEMINI_MODEL = _clean("GEMINI_MODEL", "gemini-3.6-flash")
+GEMINI_TIMEOUT_SECONDS = float(_clean("GEMINI_TIMEOUT_SECONDS", "12"))
+
+
+USE_LLM_ASSESSMENT = bool(GEMINI_API_KEY)
 
 
 def status() -> dict:
@@ -52,6 +55,6 @@ def status() -> dict:
     return {
         "camara_mode": "live" if USE_LIVE_CAMARA else "mock",
         "camara_gateway": NAC_BASE_URL if USE_LIVE_CAMARA else None,
-        "rationale_mode": "gemini" if GEMINI_API_KEY else "template",
-        "gemini_model": GEMINI_MODEL if GEMINI_API_KEY else None,
+        "assessment_mode": "gemini + rules" if USE_LLM_ASSESSMENT else "rules only",
+        "gemini_model": GEMINI_MODEL if USE_LLM_ASSESSMENT else None,
     }

@@ -51,3 +51,47 @@ def test_mock_mode_is_reported():
     result = agent.decide(SCENARIOS["clean"]["request"], scenario="clean")
     assert result["camara_mode"] == "mock"
     assert result["signal_sources"] == ["mock"]
+
+
+def test_rules_only_when_llm_disabled():
+    """conftest disables the LLM, so every decision is rules-only and the
+    assessment block records that."""
+    result = agent.decide(SCENARIOS["sim_swap_block"]["request"], scenario="sim_swap_block")
+    a = result["assessment"]
+    assert a["mode"] == "rules only"
+    assert a["ai"] is None
+    assert a["agreement"] is None
+    assert result["decision"] == a["rules"]["decision"]
+
+
+def test_reconcile_takes_the_stricter_decision(monkeypatch):
+    """With a stubbed AI verdict, finalize takes whichever of rules / AI
+    is stricter and flags the disagreement."""
+    from backend.agent import assessment
+
+    monkeypatch.setattr(assessment, "available", lambda: True)
+    monkeypatch.setattr(assessment, "assess", lambda *a, **k: {
+        "decision": "BLOCK", "risk_score": 88, "reasoning": "stubbed combination"})
+
+    # A transfer on otherwise-clean signals: rules would ALLOW, the (stubbed)
+    # AI says BLOCK. The transfer forces escalation so the AI step runs.
+    result = agent.decide(
+        {**SCENARIOS["clean"]["request"], "action_type": "transfer"}, scenario="clean")
+
+    assert result["decision"] == "BLOCK"
+    assert result["assessment"]["rules"]["decision"] == "ALLOW"
+    assert result["assessment"]["ai"]["decision"] == "BLOCK"
+    assert result["assessment"]["agreement"] is False
+    assert result["risk_score"] == 88
+    assert "stricter" in result["rationale"].lower()
+
+
+def test_fast_path_skips_the_ai_analyst(monkeypatch):
+    from backend.agent import assessment
+
+    called = []
+    monkeypatch.setattr(assessment, "available", lambda: True)
+    monkeypatch.setattr(assessment, "assess", lambda *a, **k: called.append(1))
+
+    agent.decide(SCENARIOS["clean"]["request"], scenario="clean")  # clean login = fast path
+    assert called == []

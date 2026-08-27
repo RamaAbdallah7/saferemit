@@ -17,6 +17,8 @@ const SOURCE_LABEL = {
   live: "live",
   mock: "mock",
   "mock-fallback": "mock (fallback)",
+  gemini: "AI",
+  "gemini-unavailable": "unavailable",
 };
 
 export default function TraceList({ trace, runKey }) {

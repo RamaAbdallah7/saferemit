@@ -4,41 +4,36 @@ SafeRemitAgent — the AI agent orchestration layer.
 Built on LangGraph (github.com/langchain-ai/langgraph — listed in the
 hackathon's AI Resource & Tooling Guide, section 2, "Code-first agent
 frameworks"). LangGraph models the agent as a directed graph of nodes and
-conditional edges, which maps directly onto how this agent actually
-behaves: it is NOT a fixed pipeline that calls all four CAMARA APIs on
-every request. It behaves like a fraud analyst would — cheap, low-risk
-checks first, escalating to deeper signals only when the transaction is
-sensitive or an early signal already looks wrong. That's what the Guide's
-own tip means by "agentic": the agent decides which CAMARA API to call
-next, it isn't just a button the user presses.
+conditional edges, which maps onto how this agent actually behaves: it is
+NOT a fixed pipeline that calls every CAMARA API on every request. It
+works like a fraud analyst — cheap checks first, deeper (slower) signals
+only when the transaction is sensitive or an early signal looks wrong,
+then an LLM analyst weighs the combination.
 
 Graph:
 
-    initial_checks ──[conditional]──> escalated_checks ──> finalize
-       (number verification            (device status +          │
-        + SIM swap, in parallel)        location, in parallel)    │
-                       │                                          │
-                       └────── fast path (clean login) ───────────┘
+    initial_checks ──[escalate?]──> escalated_checks ──> ai_assessment ──> finalize
+       (number verification            (device status +      (Gemini reads the       (reconcile
+        + SIM swap, parallel)            location, parallel)   signal combination)     rules + AI)
+                       │                                                                    │
+                       └───────────── fast path (clean login) ──────────────────────────────┘
 
-Within a node the independent CAMARA calls run concurrently — same
-signals, roughly half the wall-clock latency, which matters when each
-call is a real round trip to the operator network.
+Within a node the independent CAMARA calls run concurrently. The LLM step
+runs only on the escalation path — a clean login has no concerning
+combination to reason about, so it stays fast.
 
-Escalation triggers when:
-  - the action itself is sensitive (onboarding / transfer), or
-  - an early signal already looks wrong (SIM swap flagged, or the number
-    failed carrier verification).
-
-`finalize` fuses every signal actually pulled into a 0-100 risk score
-with a running trace, maps it to ALLOW / STEP_UP / BLOCK, and calls the
-rationale generator (Gemini, per the Guide's "Hosted APIs with a free
-tier" list, with an automatic deterministic fallback — see rationale.py).
+`finalize` reconciles two opinions: the transparent rules score
+(scoring.py) and Gemini's verdict (assessment.py). It takes the stricter
+decision and flags any disagreement for human review. If Gemini is
+unconfigured or the call fails, the rules score stands alone — the demo
+never depends on the LLM.
 """
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from . import assessment
 from .rationale import explain
 from .scoring import (
     decision_for_score,
@@ -53,6 +48,7 @@ from ..camara_apis.number_verification import NumberVerificationClient
 from ..camara_apis.sim_swap import SimSwapClient
 
 SENSITIVE_ACTIONS = {"onboarding", "transfer"}
+_SEVERITY = {"ALLOW": 0, "STEP_UP": 1, "BLOCK": 2}
 
 _sim_swap_client = SimSwapClient()
 _number_verification_client = NumberVerificationClient()
@@ -69,6 +65,8 @@ class AgentState(TypedDict):
     score: int
     trace: List[Dict[str, Any]]
     escalate: bool
+    ai: Optional[Dict[str, Any]]
+    ai_ran: bool
     result: Optional[Dict[str, Any]]
 
 
@@ -149,21 +147,75 @@ def node_escalated_checks(state: AgentState) -> dict:
     return {"score": score, "trace": trace}
 
 
+def node_ai_assessment(state: AgentState) -> dict:
+    """LLM analyst: hand Gemini the signal combination and ask for a
+    verdict. Only runs on the escalation path — a clean login has no
+    concerning combination to reason about. Returns None (recorded as
+    such) when unconfigured or on failure; finalize() then uses the
+    rules score alone."""
+    trace = list(state["trace"])
+    if not assessment.available():
+        return {"ai": None, "ai_ran": True, "trace": trace}
+
+    ai = assessment.assess(state["action_type"], state["trace"])
+    if ai:
+        trace.append(_entry(
+            "ai_assessment", None, {"source": "gemini", **ai}, 0,
+            f"AI analyst: {ai['decision'].replace('_', '-')} (risk {ai['risk_score']}) — {ai['reasoning']}",
+            state["score"],
+        ))
+    else:
+        trace.append(_entry("ai_assessment", None, {"source": "gemini-unavailable"}, 0,
+                            "AI analyst call did not return a verdict — proceeding on the rules score.",
+                            state["score"]))
+    return {"ai": ai, "ai_ran": True, "trace": trace}
+
+
 def node_finalize(state: AgentState) -> dict:
-    decision = decision_for_score(state["score"])
-    rationale = explain(decision, state["score"], state["trace"])
+    rules_score = min(100, state["score"])
+    rules_decision = decision_for_score(state["score"])
+    ai = state.get("ai")
+
+    if ai:
+        final_decision = max(rules_decision, ai["decision"], key=lambda d: _SEVERITY[d])
+        agreement = rules_decision == ai["decision"]
+        risk_score = rules_score if agreement else max(rules_score, ai["risk_score"])
+    else:
+        final_decision = rules_decision
+        agreement = None
+        risk_score = rules_score
+
+    rationale = explain(final_decision, risk_score, state["trace"],
+                        ai=ai, agreement=agreement, rules_decision=rules_decision)
+
     signal_sources = sorted({
         s["signal"]["source"]
         for s in state["trace"]
         if s.get("signal") and "source" in s["signal"]
     })
+
+    if ai:
+        mode = "gemini + rules"
+    elif not state.get("ai_ran"):
+        mode = "rules only (fast path — no escalation)"
+    elif assessment.available():
+        mode = "rules only (AI analyst call failed)"
+    else:
+        mode = "rules only"
+
     result = {
-        "decision": decision,
-        "risk_score": min(100, state["score"]),
+        "decision": final_decision,
+        "risk_score": risk_score,
         "raw_score": state["score"],
         "apis_called": [s["api"] for s in state["trace"] if s["api"]],
         "camara_mode": "live" if "live" in signal_sources else "mock",
         "signal_sources": signal_sources,
+        "assessment": {
+            "mode": mode,
+            "rules": {"decision": rules_decision, "risk_score": rules_score},
+            "ai": ai,
+            "agreement": agreement,
+        },
         "rationale": rationale["text"],
         "rationale_source": rationale["source"],
         "trace": state["trace"],
@@ -175,6 +227,7 @@ def _build_graph():
     graph = StateGraph(AgentState)
     graph.add_node("initial_checks", node_initial_checks)
     graph.add_node("escalated_checks", node_escalated_checks)
+    graph.add_node("ai_assessment", node_ai_assessment)
     graph.add_node("finalize", node_finalize)
 
     graph.set_entry_point("initial_checks")
@@ -182,7 +235,8 @@ def _build_graph():
         "escalate": "escalated_checks",
         "fast_path": "finalize",
     })
-    graph.add_edge("escalated_checks", "finalize")
+    graph.add_edge("escalated_checks", "ai_assessment")
+    graph.add_edge("ai_assessment", "finalize")
     graph.add_edge("finalize", END)
     return graph.compile()
 
@@ -204,6 +258,8 @@ class SafeRemitAgent:
             "score": 0,
             "trace": [],
             "escalate": False,
+            "ai": None,
+            "ai_ran": False,
             "result": None,
         }
         final_state = _compiled_graph.invoke(initial_state)

@@ -3,9 +3,43 @@ import DecisionBadge from "./DecisionBadge";
 import TraceList from "./TraceList";
 
 // Rationale reveal is delayed to land just after the last staggered trace
-// item finishes (see TraceList's staggerChildren/delayChildren timing) —
-// tune RATIONALE_DELAY_S alongside those values if you change the stagger.
-const RATIONALE_DELAY_S = 0.1 + 4 * 0.14 + 0.25;
+// item finishes (see TraceList's staggerChildren/delayChildren timing).
+const RATIONALE_DELAY_S = 0.1 + 5 * 0.14 + 0.25;
+
+const LABEL = { ALLOW: "ALLOW", STEP_UP: "STEP-UP", BLOCK: "BLOCK" };
+
+function Assessment({ assessment }) {
+  if (!assessment) return null;
+  const { mode, rules, ai, agreement } = assessment;
+
+  return (
+    <div className="assessment">
+      <div className="assessment-row">
+        <span className="a-label">Rules engine</span>
+        <span className={`a-verdict ${rules.decision.toLowerCase()}`}>
+          {LABEL[rules.decision]} · {rules.risk_score}
+        </span>
+      </div>
+      {ai ? (
+        <>
+          <div className="assessment-row">
+            <span className="a-label">AI analyst · Gemini</span>
+            <span className={`a-verdict ${ai.decision.toLowerCase()}`}>
+              {LABEL[ai.decision]} · {ai.risk_score}
+            </span>
+          </div>
+          <p className={`a-note ${agreement ? "agree" : "disagree"}`}>
+            {agreement
+              ? "Both agree — confidence is high."
+              : "Split call — the agent took the stricter decision and flagged it for review."}
+          </p>
+        </>
+      ) : (
+        <p className="a-note">{mode}</p>
+      )}
+    </div>
+  );
+}
 
 export default function ReasoningPanel({ result, runKey }) {
   return (
@@ -22,6 +56,7 @@ export default function ReasoningPanel({ result, runKey }) {
             animate={{ opacity: 1, transition: { delay: RATIONALE_DELAY_S, duration: 0.35 } }}
             exit={{ opacity: 0 }}
           >
+            <Assessment assessment={result.assessment} />
             <div className="rationale-label">
               Rationale <span className="mono">({result.rationale_source})</span>
             </div>

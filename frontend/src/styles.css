@@ -209,6 +209,29 @@ body{
 }
 .src-badge.live{ color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .src-badge.mock-fallback{ color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, var(--border)); }
+.src-badge.gemini{ color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.src-badge.gemini-unavailable{ color: var(--ink-muted); }
+
+/* AI + rules reconciliation */
+.assessment{
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  background: var(--panel-2);
+}
+.assessment-row{
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 0.8rem; padding: 3px 0;
+}
+.assessment-row .a-label{ color: var(--ink-muted); font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.03em; }
+.a-verdict{ font-family: var(--mono); font-size: 0.78rem; font-weight: 600; }
+.a-verdict.allow{ color: var(--accent-ink); }
+.a-verdict.step_up{ color: var(--amber); }
+.a-verdict.block{ color: var(--danger); }
+.a-note{ margin: 8px 0 0; font-size: 0.78rem; color: var(--ink-muted); line-height: 1.5; }
+.a-note.agree{ color: var(--accent-ink); }
+.a-note.disagree{ color: var(--amber); }
 
 .rationale{
   border-top: 1px dashed var(--border);
