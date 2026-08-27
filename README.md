@@ -7,15 +7,33 @@ SafeRemit is an AI agent that fuses SIM Swap, Number Verification, Device Status
 
 ## Quickstart
 
+**While actively developing the UI** (two terminals, live reload):
+
 ```bash
+# terminal 1 — backend
 cd saferemit
 pip install -r backend/requirements.txt
 uvicorn backend.app:app --reload
+
+# terminal 2 — frontend (React + Framer Motion, hot reload)
+cd saferemit/frontend
+npm install
+npm run dev
 ```
 
-Then open **http://127.0.0.1:8000** — the demo UI is served directly by the backend, so this one command is the whole prototype.
+Open **http://127.0.0.1:5173** — Vite proxies `/api/*` calls straight through to the backend on :8000 (see `frontend/vite.config.js`), so both sides update live as you edit.
 
-Optional: `export GEMINI_API_KEY=...` before starting the server to turn on live Gemini-generated rationale text (see `PROTOTYPE_NOTES.md`). Works fine without it — falls back to a deterministic explainer.
+**For a single-command demo run** (e.g. recording the submission video):
+
+```bash
+cd saferemit/frontend && npm install && npm run build
+cd .. && pip install -r backend/requirements.txt
+uvicorn backend.app:app
+```
+
+Open **http://127.0.0.1:8000** — the backend serves the built React app directly, so this one command is the whole prototype. (`frontend-vanilla/` is the original plain HTML/JS version, kept as a zero-dependency fallback if `frontend/dist` hasn't been built yet.)
+
+Optional: `export GEMINI_API_KEY=...` before starting the backend to turn on live Gemini-generated rationale text (see `PROTOTYPE_NOTES.md`). Works fine without it — falls back to a deterministic explainer.
 
 ## How it works
 
@@ -67,8 +85,12 @@ backend/
     rationale.py        plain-language explanation, optional live Gemini call
   scenarios.py         the 3 demo scenarios (clean / sim-swap block / mismatch step-up)
   app.py               FastAPI app — /api/decide, /api/scenarios, serves the frontend
-frontend/
-  index.html, style.css, app.js   the demo UI (scenario picker + live reasoning panel)
+frontend/                React + Vite + Framer Motion demo UI (scenario picker,
+                          animated reasoning trace, live decision badge)
+  src/components/        ScenarioTabs, AppMock, ReasoningPanel, DecisionBadge, TraceList
+  src/api.js              talks to the backend; PREVIEW_REQUESTS mirrors scenarios.py
+frontend-vanilla/        original plain HTML/JS/CSS version — zero build step,
+                          kept as a fallback (see backend/app.py)
 demo/
   DEMO_SCRIPT.md        script for the 3-minute submission video
 PROTOTYPE_NOTES.md      what's mocked vs. real, how to go live, compliance checklist

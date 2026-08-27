@@ -15,6 +15,16 @@ This split is deliberate and matches the Resource & Tooling Guide's own advice: 
 4. Use the portal's simulator numbers for testing rather than real SIMs — this is what the platform is built for.
 5. Keep the mock clients in the codebase (don't delete them) — fall back to them if the live sandbox is rate-limited or flaky during your actual demo.
 
+## Where to tune the Framer Motion animation
+
+The frontend was rebuilt on React + Vite specifically so this part is easy to iterate on with live reload (`npm run dev` in `frontend/`). Entry points:
+
+- `frontend/src/components/TraceList.jsx` — `listVariants`/`itemVariants` control the staggered reveal of each reasoning step. `staggerChildren` (currently 0.14s) is the gap between steps appearing.
+- `frontend/src/components/ReasoningPanel.jsx` — `RATIONALE_DELAY_S` times the rationale fade-in to land after the last trace item. If you change `staggerChildren` or the trace length assumption, update this too (it's a plain formula, not auto-derived, on purpose — easy to see and change).
+- `frontend/src/components/DecisionBadge.jsx` — the spring transition on the badge itself, plus `useCountUp` for the risk-score number animation.
+- `frontend/src/components/ScenarioTabs.jsx` — the sliding active-tab pill, done with a shared `layoutId` (Framer Motion animates the transform between tabs automatically).
+- `frontend/src/styles.css` — colors/spacing/layout; unrelated to Framer Motion but often edited alongside it.
+
 ## To turn on the live Gemini rationale
 
 1. Get a free key at https://aistudio.google.com/ (Google AI Studio — listed in the Resource & Tooling Guide, section 3).

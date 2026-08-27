@@ -59,8 +59,20 @@ def api_decide(body: DecideRequest):
     return result
 
 
-# Serve the demo frontend as static files at the root, so `uvicorn backend.app:app`
-# is the only thing you need running for the whole demo.
-_frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
-if _frontend_dir.exists():
-    app.mount("/", StaticFiles(directory=str(_frontend_dir), html=True), name="frontend")
+# Serve the built React frontend as static files at the root, so
+# `uvicorn backend.app:app` alone can run the whole demo (after `npm run
+# build` in frontend/ — see frontend/README or PROTOTYPE_NOTES.md).
+#
+# While actively developing the UI, run `npm run dev` in frontend/ instead
+# (Vite dev server on :5173, proxying /api to this backend on :8000) — much
+# faster iteration than rebuilding on every change.
+_project_root = Path(__file__).resolve().parent.parent
+_react_dist = _project_root / "frontend" / "dist"
+_vanilla_frontend = _project_root / "frontend-vanilla"
+
+if _react_dist.exists():
+    app.mount("/", StaticFiles(directory=str(_react_dist), html=True), name="frontend")
+elif _vanilla_frontend.exists():
+    # Fallback so `uvicorn backend.app:app` still serves *something* before
+    # you've run `npm install && npm run build` in frontend/.
+    app.mount("/", StaticFiles(directory=str(_vanilla_frontend), html=True), name="frontend-vanilla")
