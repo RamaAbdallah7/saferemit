@@ -73,6 +73,8 @@ def list_scenarios() -> list[dict]:
             "description": s["description"],
             "expected_decision": s["expected_decision"],
             "live_capable": s["live_phone"] is not None,
+            "live_phone": s["live_phone"],
+            "request": s["request"],
         }
         for s in SCENARIOS.values()
     ]

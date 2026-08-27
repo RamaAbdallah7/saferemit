@@ -1,14 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { PREVIEW_REQUESTS, ACTION_TYPES, CUSTOM_PRESETS } from "../api";
-
-function ReadOnlyField({ label, children }) {
-  return (
-    <div className="field">
-      <label>{label}</label>
-      <div className="value mono">{children}</div>
-    </div>
-  );
-}
+import { ACTION_TYPES, CUSTOM_PRESETS } from "../api";
 
 function EditField({ label, value, onChange, placeholder }) {
   return (
@@ -16,7 +7,7 @@ function EditField({ label, value, onChange, placeholder }) {
       <label>{label}</label>
       <input
         className="value mono input"
-        value={value}
+        value={value ?? ""}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -24,14 +15,13 @@ function EditField({ label, value, onChange, placeholder }) {
   );
 }
 
-export default function AppMock({ scenario, isCustom, customReq, onCustomChange, onRun, running }) {
-  const preview = PREVIEW_REQUESTS[scenario?.id] || {};
-  const setField = (k) => (v) => onCustomChange({ ...customReq, [k]: v });
+export default function AppMock({ scenario, form, dirty, onChange, onRun, running }) {
+  const set = (k) => (v) => onChange({ [k]: v });
 
   return (
     <section className="panel app-mock">
       <h2>
-        Remittance App <span className="mock-tag">{isCustom ? "editable" : "mock UI"}</span>
+        Remittance App <span className="mock-tag">editable</span>
       </h2>
 
       <AnimatePresence mode="wait">
@@ -47,46 +37,35 @@ export default function AppMock({ scenario, isCustom, customReq, onCustomChange,
         </motion.p>
       </AnimatePresence>
 
-      {isCustom ? (
-        <>
-          <div className="presets">
-            {CUSTOM_PRESETS.map((p) => (
-              <button key={p.label} type="button" className="preset" title={p.note}
-                onClick={() => onCustomChange({ ...customReq, ...p.req })}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <EditField label="Phone number" value={customReq.phone_number}
-            onChange={setField("phone_number")} placeholder="+99999991000" />
-          <div className="field">
-            <label>Action</label>
-            <div className="seg">
-              {ACTION_TYPES.map((a) => (
-                <button
-                  key={a}
-                  type="button"
-                  className={customReq.action_type === a ? "on" : ""}
-                  onClick={() => setField("action_type")(a)}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
-          </div>
-          <EditField label="Device fingerprint" value={customReq.device_fingerprint}
-            onChange={setField("device_fingerprint")} placeholder="device-fp-…" />
-          <EditField label="Claimed location" value={customReq.claimed_location}
-            onChange={setField("claimed_location")} placeholder="Dubai, UAE" />
-        </>
-      ) : (
-        <>
-          <ReadOnlyField label="Phone number">{preview.phone_number || "—"}</ReadOnlyField>
-          <ReadOnlyField label="Action">{preview.action_type || "—"}</ReadOnlyField>
-          <ReadOnlyField label="Device">{preview.device_fingerprint || "—"}</ReadOnlyField>
-          <ReadOnlyField label="Claimed location">{preview.claimed_location || "—"}</ReadOnlyField>
-        </>
-      )}
+      <div className="presets">
+        {CUSTOM_PRESETS.map((p) => (
+          <button key={p.label} type="button" className="preset" title={p.note}
+            onClick={() => onChange(p.req)}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <EditField label="Phone number" value={form.phone_number}
+        onChange={set("phone_number")} placeholder="+99999991000" />
+
+      <div className="field">
+        <label>Action</label>
+        <div className="seg">
+          {ACTION_TYPES.map((a) => (
+            <button key={a} type="button"
+              className={form.action_type === a ? "on" : ""}
+              onClick={() => set("action_type")(a)}>
+              {a}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <EditField label="Device fingerprint" value={form.device_fingerprint}
+        onChange={set("device_fingerprint")} placeholder="device-fp-..." />
+      <EditField label="Claimed location" value={form.claimed_location}
+        onChange={set("claimed_location")} placeholder="Dubai, UAE" />
 
       <motion.button
         className="run-btn"
@@ -97,8 +76,11 @@ export default function AppMock({ scenario, isCustom, customReq, onCustomChange,
       >
         {running ? "Running…" : "Run SafeRemit decision"}
       </motion.button>
+
       <p className="hint">
-        This calls the same <code>/api/decide</code> endpoint a real remittance app would call — nothing here is faked at the UI layer.
+        {dirty && scenario?.id !== "__custom__"
+          ? "Edited — this runs as a custom request against the live agent."
+          : "This calls the same /api/decide endpoint a real remittance app would call — nothing here is faked at the UI layer."}
       </p>
     </section>
   );

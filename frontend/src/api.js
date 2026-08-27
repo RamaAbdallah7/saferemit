@@ -35,31 +35,9 @@ export async function decide(scenarioOrRequest) {
   return res.json();
 }
 
-// Mirrors backend/scenarios.py — used only to preview form fields before a
-// run. The actual decision always comes from the live API call above.
-export const PREVIEW_REQUESTS = {
-  clean: {
-    phone_number: "+971501234567",
-    action_type: "login",
-    device_fingerprint: "device-fp-known-abc123",
-    claimed_location: "Dubai, UAE",
-  },
-  sim_swap_block: {
-    phone_number: "+971501234567",
-    action_type: "login",
-    device_fingerprint: "device-fp-unknown-xyz999",
-    claimed_location: "Dubai, UAE",
-  },
-  mismatch_stepup: {
-    phone_number: "+971509876543",
-    action_type: "onboarding",
-    device_fingerprint: "device-fp-unknown-new777",
-    claimed_location: "Cairo, Egypt",
-  },
-};
-
-// Starting point for the editable "Custom request" mode. The simulator
-// MSISDN +99999991000 is what the Nokia NaC docs use for live test calls.
+// Starting point for the editable form / "Custom request" tab. The
+// simulator MSISDN +99999991000 is what the Nokia NaC docs use for live
+// test calls.
 export const CUSTOM_DEFAULT = {
   phone_number: "+99999991000",
   action_type: "transfer",

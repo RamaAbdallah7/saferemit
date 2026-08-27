@@ -5,39 +5,69 @@ import ReasoningPanel from "./components/ReasoningPanel";
 import { fetchScenarios, fetchHealth, decide, CUSTOM_DEFAULT } from "./api";
 
 const CUSTOM_ID = "__custom__";
+const CUSTOM_TAB = {
+  id: CUSTOM_ID,
+  title: "Custom request",
+  description: "Send any request the agent would receive in production — pick the action, edit the signals, and watch it decide.",
+  request: CUSTOM_DEFAULT,
+};
 
 export default function App() {
   const [scenarios, setScenarios] = useState([]);
   const [health, setHealth] = useState(null);
-  const [activeId, setActiveId] = useState(null);
-  const [customReq, setCustomReq] = useState(CUSTOM_DEFAULT);
+  const [activeId, setActiveId] = useState(CUSTOM_ID);
+  const [form, setForm] = useState(CUSTOM_DEFAULT);
+  const [dirty, setDirty] = useState(false);
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [runKey, setRunKey] = useState(0);
   const [error, setError] = useState(null);
 
+  const live = health?.camara_mode === "live";
+
   useEffect(() => {
-    fetchScenarios()
-      .then((list) => {
+    Promise.all([fetchScenarios(), fetchHealth().catch(() => null)])
+      .then(([list, h]) => {
         setScenarios(list);
-        if (list.length) setActiveId(list[0].id);
+        setHealth(h);
+        if (list.length) {
+          setActiveId(list[0].id);
+          setForm(seedFor(list[0], h?.camara_mode === "live"));
+          setDirty(false);
+        }
       })
       .catch((e) => setError(e.message));
-    fetchHealth().then(setHealth).catch(() => setHealth(null));
   }, []);
 
+  function seedFor(scenario, isLive) {
+    const req = { ...CUSTOM_DEFAULT, ...(scenario.request || {}) };
+    if (isLive && scenario.live_phone) req.phone_number = scenario.live_phone;
+    return req;
+  }
+
   function handleSelect(id) {
+    const scenario = id === CUSTOM_ID ? CUSTOM_TAB : scenarios.find((s) => s.id === id);
     setActiveId(id);
+    setForm(seedFor(scenario || CUSTOM_TAB, live));
+    setDirty(false);
     setResult(null);
     setError(null);
   }
 
+  function updateForm(patch) {
+    setForm((f) => ({ ...f, ...patch }));
+    setDirty(true);
+  }
+
   async function handleRun() {
-    if (!activeId) return;
     setRunning(true);
     setError(null);
     try {
-      const data = await decide(activeId === CUSTOM_ID ? customReq : activeId);
+      // An untouched named scenario runs through its scripted path (which
+      // keeps the tuned outcome + the live simulator number). Any edit, or
+      // the Custom tab, sends the form as a free-form request.
+      const asScenario = activeId !== CUSTOM_ID && !dirty;
+      const data = await decide(asScenario ? activeId : form);
       setResult(data);
       setRunKey((k) => k + 1);
     } catch (e) {
@@ -48,15 +78,9 @@ export default function App() {
     }
   }
 
-  const tabs = [
-    ...scenarios,
-    { id: CUSTOM_ID, title: "Custom request" },
-  ];
-  const isCustom = activeId === CUSTOM_ID;
-  const activeScenario = isCustom
-    ? { id: CUSTOM_ID, description: "Send any request the agent would receive in production — pick the action, edit the signals, and watch it decide." }
-    : scenarios.find((s) => s.id === activeId) || null;
-
+  const tabs = [...scenarios, CUSTOM_TAB];
+  const activeScenario =
+    activeId === CUSTOM_ID ? CUSTOM_TAB : scenarios.find((s) => s.id === activeId) || CUSTOM_TAB;
   const camaraMode = health?.camara_mode ?? "…";
 
   return (
@@ -70,7 +94,7 @@ export default function App() {
           </div>
         </div>
         <div className="header-right">
-          <span className={`mode-pill ${camaraMode}`} title="CAMARA data source (GET /api/health)">
+          <span className={`mode-pill ${camaraMode}`} title="Where the network signals come from">
             <span className="dot" />
             {camaraMode === "live" ? "LIVE · Nokia NaC" : camaraMode === "mock" ? "MOCK data" : "…"}
           </span>
@@ -81,9 +105,9 @@ export default function App() {
       <main className="stage">
         <AppMock
           scenario={activeScenario}
-          isCustom={isCustom}
-          customReq={customReq}
-          onCustomChange={setCustomReq}
+          form={form}
+          dirty={dirty}
+          onChange={updateForm}
           onRun={handleRun}
           running={running}
         />
@@ -91,7 +115,7 @@ export default function App() {
       </main>
 
       {error && (
-        <p style={{ textAlign: "center", color: "var(--danger)", padding: "0 28px" }}>
+        <p className="run-error">
           Request failed — is the backend running on :8000? ({error})
         </p>
       )}
