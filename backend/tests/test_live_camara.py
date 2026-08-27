@@ -41,3 +41,11 @@ def test_device_status_live():
     result = DeviceStatusClient().check(SIMULATOR_NUMBER, "device-fp-known-abc123")
     assert result["source"] == "live", result.get("live_error")
     assert isinstance(result["roaming"], bool)
+
+
+def test_location_verification_live():
+    from backend.camara_apis.location_verification import LocationVerificationClient
+
+    result = LocationVerificationClient().verify(SIMULATOR_NUMBER, "Dubai, UAE")
+    assert result["source"] == "live", result.get("live_error")
+    assert result["verification_result"] in {"TRUE", "FALSE", "PARTIAL", "UNKNOWN"}

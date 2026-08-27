@@ -1,11 +1,13 @@
 """
 CAMARA Device Status API client (live-or-mock).
 
-Live: networkAsCode SDK
-     client.device_status.check_roaming(device={"phone_number": ...})
-       -> { "roaming": bool, "countryCode": int, "countryName": [str] }
-     client.device_status.check_connectivity(device={"phone_number": ...})
-       -> { "connectivityStatus": "CONNECTED_DATA"|"CONNECTED_SMS"|"NOT_CONNECTED" }
+Live (Nokia NaC apihub, Simulator mode):
+  POST /device-status/device-roaming-status/v1/retrieve
+    body { "device": { "phoneNumber": "+..." } }
+    -> { "roaming": bool, "countryCode": int, "countryName": [str] }
+  POST /device-status/v0/connectivity
+    body { "device": { "phoneNumber": "+..." } }
+    -> { "connectivityStatus": "CONNECTED_DATA"|"CONNECTED_SMS"|"NOT_CONNECTED" }
 
 `known_device` is NOT a CAMARA signal - device-fingerprint recognition is
 the remittance app's job, not the network's. CAMARA gives us roaming +
@@ -16,7 +18,10 @@ backs with its own device table).
 Without NAC_API_KEY (or if a live call fails) everything falls back to the
 scenario-keyed mock below.
 """
-from ._nac import NacError, as_dict, call, client, live_enabled
+from ._nac import NacError, live_enabled, nac_post
+
+_ROAMING = "/device-status/device-roaming-status/v1/retrieve"
+_CONNECTIVITY = "/device-status/v0/connectivity"
 
 # Device fingerprints the app has previously seen on a legitimate session.
 KNOWN_DEVICES = {"device-fp-known-abc123"}
@@ -53,13 +58,12 @@ class DeviceStatusClient:
         return self._mock(phone_number, device_fingerprint, scenario, source="mock")
 
     def _live(self, phone_number: str, device_fingerprint: str) -> dict:
-        device = {"phone_number": phone_number}
-        roaming = as_dict(call(lambda: client().device_status.check_roaming(device=device)))
+        device = {"device": {"phoneNumber": phone_number}}
+        roaming = nac_post(_ROAMING, device)
         try:
-            conn = as_dict(call(lambda: client().device_status.check_connectivity(device=device)))
-            conn_status = conn.get("connectivity_status") or conn.get("connectivityStatus") or "UNKNOWN"
+            conn_status = nac_post(_CONNECTIVITY, device).get("connectivityStatus", "UNKNOWN")
         except NacError:
-            conn_status = "UNKNOWN"  # connectivity is a nice-to-have; roaming is the signal we score
+            conn_status = "UNKNOWN"  # connectivity is nice-to-have; roaming is the scored signal
         return {
             "api": "device_status",
             "phone_number": phone_number,

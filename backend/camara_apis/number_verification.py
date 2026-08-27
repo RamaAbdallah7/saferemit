@@ -1,20 +1,22 @@
 """
 CAMARA Number Verification API client (live-or-mock).
 
-Live: networkAsCode SDK -> client.number_verification.verify(phone_number=...)
-     CAMARA response: { "devicePhoneNumberVerified": bool }
+Live (Nokia NaC apihub, Simulator mode):
+  POST /passthrough/camara/v1/number-verification/number-verification/v2/verify
+    body { "phoneNumber": "+..." }  -> { "devicePhoneNumberVerified": bool }
 
-NOTE: CAMARA Number Verification is a 3-legged flow - the subscriber's
-device normally completes an OAuth authorization on-network before the
-verify call. Server-to-server it works only against the NaC simulated
-network (API Playground test numbers). If the live call needs consent it
-raises and we fall back to the mock - which is an acceptable, documented
-degradation per the Tooling Guide.
+NOTE: in production CAMARA Number Verification is a 3-legged flow (the
+subscriber's device authorizes on-network first). The Simulator accepts a
+plain phoneNumber; if a live call ever needs consent it raises and we
+fall back to the mock - documented, acceptable degradation per the
+Tooling Guide.
 
 Without NAC_API_KEY (or if the live call fails) this returns the
 scenario-keyed mock below.
 """
-from ._nac import NacError, as_dict, call, client, live_enabled
+from ._nac import NacError, live_enabled, nac_post
+
+_VERIFY = "/passthrough/camara/v1/number-verification/number-verification/v2/verify"
 
 SCENARIOS = {
     "clean": {"verified": True},
@@ -36,15 +38,11 @@ class NumberVerificationClient:
         return self._mock(phone_number, scenario, source="mock")
 
     def _live(self, phone_number: str) -> dict:
-        resp = call(lambda: client().number_verification.verify(phone_number=phone_number))
-        data = as_dict(resp)
-        verified = data.get("device_phone_number_verified")
-        if verified is None:
-            verified = data.get("devicePhoneNumberVerified")
+        data = nac_post(_VERIFY, {"phoneNumber": phone_number})
         return {
             "api": "number_verification",
             "phone_number": phone_number,
-            "verified": bool(verified),
+            "verified": bool(data.get("devicePhoneNumberVerified")),
             "source": "live",
         }
 

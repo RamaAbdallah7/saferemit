@@ -7,39 +7,41 @@
 
 This graceful degradation is exactly what the Resource & Tooling Guide tells you to build: *"Have a clear fallback when an API or model is rate-limited"* and *"Cache demo data. Live API calls fail at the worst moment."* `GET /api/health` reports whether you're currently `live` or `mock`, and every decision result carries `camara_mode` + `signal_sources`.
 
-## To go live with Nokia Network-as-Code
+## Live Nokia Network-as-Code status (2026-08-28)
 
-The integration is written against the official **`networkAsCode` Python SDK**
-(`pip install networkAsCode`). Each `backend/camara_apis/*.py` `_live()` method
-calls the SDK and falls back to its mock on any error.
+Live mode is **on** and working. `.env` holds:
 
-1. Register at https://networkascode.nokia.io/ (each teammate individually).
-2. **Create an Application** (`Applications → Create application`).
-3. **Add the APIs to that application** and clear anything sitting in
-   `Approvals`: SIM Swap, Device Status, Location Verification/Retrieval,
-   Number Verification. This is the step that matters — without it the
-   RapidAPI gateway returns `404 {"message":"API doesn't exists"}` even
-   with a valid key.
-4. Copy the application's **`x-rapidapi-key`** into `.env` as `NAC_API_KEY=`
-   (`.env` is gitignored). Restart the backend; `/api/health` shows
-   `"camara_mode": "live"`.
-5. Test against the **API Playground** simulated network (test MSISDNs like
-   `+99999991000`), not real SIMs:
-   `RUN_LIVE_CAMARA=1 python -m pytest backend/tests/test_live_camara.py -v`
-6. If a live response field name differs from what `_live()` expects, adjust
-   the mapping there (and `backend/agent/scoring.py` if a scored field
-   changed). Keep the mock clients — they're the demo-day safety net.
+```
+NAC_API_KEY=<application key from the portal Console>
+NAC_BASE_URL=https://network-as-code.p-eu.apihub.nokia.io
+NAC_RAPIDAPI_HOST=network-as-code.nokia.rapidapi.com
+```
 
-**Known constraint:** CAMARA **Number Verification** is a 3-legged flow
-(the subscriber's device authorizes on-network). Server-to-server it works
-only against the simulated network; in production the frontend would carry
-the OAuth redirect. If the live call needs consent it falls back to mock —
-documented, acceptable degradation per the Tooling Guide.
+(`.env` is gitignored — never commit it.) Endpoints/bodies in each
+`backend/camara_apis/*.py` `_live()` come verbatim from the portal Console
+cURL snippets (API Playground → endpoint → Code Snippets), Simulator mode.
 
-**Status (2026-08-27):** key is in `.env`, live mode is on, but every call
-currently 404s at the gateway — the portal application still needs its API
-subscriptions added/approved (step 3). The prototype runs fine meanwhile
-on `mock-fallback`.
+| CAMARA API | Endpoint | Live? |
+|---|---|---|
+| SIM Swap | `POST /passthrough/camara/v1/sim-swap/sim-swap/v0/check` (+ `/retrieve-date`) | ✅ live |
+| Device Status – roaming | `POST /device-status/device-roaming-status/v1/retrieve` | ✅ live |
+| Device Status – connectivity | `POST /device-status/v0/connectivity` | ✅ live |
+| Location Verification | `POST /location-verification/v1/verify` | ✅ live |
+| Number Verification | `POST /passthrough/camara/v1/number-verification/number-verification/v2/verify` | ⚠️ needs `Authorization: Bearer` (3-legged OAuth) — falls back to mock |
+
+Test: `RUN_LIVE_CAMARA=1 python -m pytest backend/tests/test_live_camara.py -v`
+
+**Number Verification** returns `{"detail":"Authorization header is missing"}`
+without an OAuth token. In production the frontend carries the redirect; for
+the demo it degrades to mock (documented, acceptable per the Tooling Guide).
+TODO: try the NaC Authorization Server (client-credentials) to get a bearer
+token for the Simulator, then pass it through `_nac.nac_post`.
+
+**Demo note:** each Simulator MSISDN has fixed behaviour (e.g. `+99999991000`
+→ swapped=true, roaming=true). The three scripted scenarios still run on
+mock data; live mode is for showing judges the calls are real. To script
+live scenarios, find Simulator numbers with clean vs. compromised profiles
+in the portal docs.
 
 ## Where to tune the Framer Motion animation
 

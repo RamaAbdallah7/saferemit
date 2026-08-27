@@ -1,15 +1,14 @@
 """
 CAMARA Location Verification API client (live-or-mock).
 
-Live: networkAsCode SDK
-     client.location.verify(
-         device={"phone_number": ...},
-         area={"area_type": "CIRCLE",
-               "center": {"latitude": lat, "longitude": lon},
-               "radius": <metres>},
-     )
-     -> { "verificationResult": "TRUE"|"FALSE"|"PARTIAL"|"UNKNOWN",
-          "matchRate": int (only when PARTIAL) }
+Live (Nokia NaC apihub, Simulator mode):
+  POST /location-verification/v1/verify
+    body { "device": { "phoneNumber": "+..." },
+           "area": { "areaType": "CIRCLE",
+                     "center": { "latitude": <lat>, "longitude": <lon> },
+                     "radius": <metres> } }
+    -> { "verificationResult": "TRUE"|"FALSE"|"PARTIAL"|"UNKNOWN",
+         "matchRate": int (only when PARTIAL) }
 
 The remittance app knows a claimed location as text ("Dubai, UAE"); a
 real deployment geocodes that. For the demo we resolve the handful of
@@ -18,7 +17,9 @@ scenario cities from GAZETTEER below.
 Without NAC_API_KEY (or if the live call fails) this returns the
 scenario-keyed mock.
 """
-from ._nac import NacError, as_dict, call, client, live_enabled
+from ._nac import NacError, live_enabled, nac_post
+
+_VERIFY = "/location-verification/v1/verify"
 
 # Minimal geocoder for the demo scenarios. A real deployment calls a
 # geocoding service here.
@@ -52,25 +53,20 @@ class LocationVerificationClient:
 
     def _live(self, phone_number: str, claimed_location: str, coords: tuple[float, float]) -> dict:
         lat, lon = coords
-        resp = call(lambda: client().location.verify(
-            device={"phone_number": phone_number},
-            area={
-                "area_type": "CIRCLE",
+        data = nac_post(_VERIFY, {
+            "device": {"phoneNumber": phone_number},
+            "area": {
+                "areaType": "CIRCLE",
                 "center": {"latitude": lat, "longitude": lon},
                 "radius": DEFAULT_RADIUS_M,
             },
-        ))
-        data = as_dict(resp)
-        result = data.get("verification_result") or data.get("verificationResult") or "UNKNOWN"
-        match_rate = data.get("match_rate")
-        if match_rate is None:
-            match_rate = data.get("matchRate", 0)
+        })
         return {
             "api": "location_verification",
             "phone_number": phone_number,
             "claimed_location": claimed_location,
-            "verification_result": result,
-            "match_rate": match_rate,
+            "verification_result": data.get("verificationResult", "UNKNOWN"),
+            "match_rate": data.get("matchRate", 0),
             "source": "live",
         }
 

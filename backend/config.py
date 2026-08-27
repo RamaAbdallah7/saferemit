@@ -24,12 +24,14 @@ def _clean(name: str, default: str = "") -> str:
 
 
 # --- Nokia Network-as-Code / CAMARA -----------------------------------------
-# The NaC developer portal is a white-labelled RapidAPI hub; a single
-# x-rapidapi-key works across every API you've subscribed to.
+# The NaC developer portal fronts the CAMARA APIs through an apihub gateway.
+# In Simulator mode a single RapidAPI-style key works across every endpoint;
+# the two values below come straight from the portal's Console "cURL" snippet
+# (API Playground -> any endpoint -> Code Snippets).
 NAC_API_KEY = _clean("NAC_API_KEY")
-NAC_API_HOST = _clean("NAC_API_HOST", "network-as-code.p-eu.rapidapi.com")
-NAC_BASE_URL = f"https://{NAC_API_HOST}"
-CAMARA_TIMEOUT_SECONDS = float(_clean("CAMARA_TIMEOUT_SECONDS", "6"))
+NAC_BASE_URL = _clean("NAC_BASE_URL", "https://network-as-code.p-eu.apihub.nokia.io").rstrip("/")
+NAC_RAPIDAPI_HOST = _clean("NAC_RAPIDAPI_HOST", "network-as-code.nokia.rapidapi.com")
+CAMARA_TIMEOUT_SECONDS = float(_clean("CAMARA_TIMEOUT_SECONDS", "10"))
 
 # Live CAMARA calls are attempted only when a key is present. Without it,
 # every client returns scenario-keyed mock data instead.
@@ -49,7 +51,7 @@ def status() -> dict:
     see at a glance whether the demo is running live or on mock data."""
     return {
         "camara_mode": "live" if USE_LIVE_CAMARA else "mock",
-        "camara_host": NAC_API_HOST if USE_LIVE_CAMARA else None,
+        "camara_gateway": NAC_BASE_URL if USE_LIVE_CAMARA else None,
         "rationale_mode": "gemini" if GEMINI_API_KEY else "template",
         "gemini_model": GEMINI_MODEL if GEMINI_API_KEY else None,
     }

@@ -39,7 +39,7 @@ Everything is optional — with nothing set, SafeRemit runs on mock CAMARA data 
 
 | Var | Effect |
 |---|---|
-| `NAC_API_KEY` | Switches all four CAMARA clients from mock to **live** Nokia Network-as-Code calls via the `networkAsCode` SDK (with automatic mock fallback on error). See `PROTOTYPE_NOTES.md` for the portal setup. |
+| `NAC_API_KEY` | Switches the CAMARA clients from mock to **live** Nokia Network-as-Code calls (with automatic mock fallback on error). SIM Swap, Device Status and Location Verification run live; Number Verification needs OAuth and falls back. See `PROTOTYPE_NOTES.md`. |
 | `GEMINI_API_KEY` | Turns on Gemini-generated rationale text (falls back to the deterministic template). |
 
 `GET /api/health` reports whether you're running `live` or `mock`. Run the tests with `python -m pytest`.
@@ -113,6 +113,7 @@ PROTOTYPE_NOTES.md      what's mocked vs. real, how to go live, compliance check
 This is the Guide's recommended **"Intermediate stack (Python)"** — LangGraph agent + Gemini + CAMARA APIs as agent tools.
 
 - **LangGraph** — §2, "Code-first agent frameworks." Chosen because the agent's actual behavior (conditional escalation — call the cheap checks first, only pull device/location data when the action is sensitive or an early signal looks wrong) is naturally a small directed graph, not a linear pipeline. This is what makes it *agentic* per the Guide: "each CAMARA API [is] a tool the agent decides when to call, not a button the user presses."
+- **CAMARA APIs on Nokia Network-as-Code** — SIM Swap, Device Status (roaming + connectivity) and Location Verification run as **live calls** against the NaC apihub gateway in Simulator mode; Number Verification is wired but needs the OAuth leg. Every call degrades to cached mock data on failure.
 - **Google AI Studio / Gemini** (`gemini-2.5-flash`) — §3, "Hosted APIs with a free tier." Rewrites the deterministic rationale into a tighter analyst-facing sentence. Optional — the deterministic template is the demo-day safety net.
 - **FastAPI + React/Vite** — kept simple so any judge can clone and run it in under a minute with one command. Live CAMARA calls degrade gracefully to cached mock data (Guide's tip: "a recorded fallback keeps the demo running").
 

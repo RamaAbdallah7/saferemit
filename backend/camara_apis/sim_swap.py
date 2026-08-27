@@ -1,15 +1,21 @@
 """
 CAMARA SIM Swap API client (live-or-mock).
 
-Live: networkAsCode SDK -> client.sim_swap.check(phone_number, max_age)
-     CAMARA response: { "swapped": bool }
+Live (Nokia NaC apihub, Simulator mode):
+  POST /passthrough/camara/v1/sim-swap/sim-swap/v0/check
+    body { "phoneNumber": "+...", "maxAge": <hours> }  -> { "swapped": bool }
+  POST /passthrough/camara/v1/sim-swap/sim-swap/v0/retrieve-date
+    body { "phoneNumber": "+..." }  -> { "latestSimChange": "<iso8601>" }
 
 Without NAC_API_KEY (or if the live call fails) this returns the
 scenario-keyed mock below - see backend/camara_apis/_nac.py.
 """
 from datetime import datetime, timedelta, timezone
 
-from ._nac import NacError, as_dict, call, client, live_enabled
+from ._nac import NacError, live_enabled, nac_post
+
+_CHECK = "/passthrough/camara/v1/sim-swap/sim-swap/v0/check"
+_RETRIEVE_DATE = "/passthrough/camara/v1/sim-swap/sim-swap/v0/retrieve-date"
 
 SCENARIOS = {
     "clean": {
@@ -41,15 +47,21 @@ class SimSwapClient:
         return self._mock(phone_number, max_age_hours, scenario, source="mock")
 
     def _live(self, phone_number: str, max_age_hours: int) -> dict:
-        resp = call(lambda: client().sim_swap.check(
-            phone_number=phone_number, max_age=max_age_hours,
-        ))
-        data = as_dict(resp)
+        data = nac_post(_CHECK, {"phoneNumber": phone_number, "maxAge": max_age_hours})
+        swapped = bool(data.get("swapped"))
+        latest_sim_change = None
+        if swapped:
+            try:
+                latest_sim_change = nac_post(
+                    _RETRIEVE_DATE, {"phoneNumber": phone_number}
+                ).get("latestSimChange")
+            except NacError:
+                pass  # timestamp is display-only; the boolean is what we score
         return {
             "api": "sim_swap",
             "phone_number": phone_number,
-            "swapped": bool(data.get("swapped")),
-            "latest_sim_change": data.get("latest_sim_change") or data.get("latestSimChange"),
+            "swapped": swapped,
+            "latest_sim_change": latest_sim_change,
             "checked_window_hours": max_age_hours,
             "source": "live",
         }
