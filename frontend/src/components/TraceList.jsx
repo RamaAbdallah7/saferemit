@@ -13,6 +13,12 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 380, damping: 30 } },
 };
 
+const SOURCE_LABEL = {
+  live: "live",
+  mock: "mock",
+  "mock-fallback": "mock (fallback)",
+};
+
 export default function TraceList({ trace, runKey }) {
   if (!trace || trace.length === 0) return null;
 
@@ -28,10 +34,18 @@ export default function TraceList({ trace, runKey }) {
         {trace.map((entry, i) => {
           const pointsClass = entry.points > 0 ? "t-points" : "t-points zero";
           const pointsLabel = entry.api ? `+${entry.points} pts · score ${entry.running_score}` : "";
+          const source = entry.signal?.source;
           return (
             <motion.li key={`${runKey}-${i}`} variants={itemVariants}>
               <div className="t-head">
-                <span>{STEP_LABELS[entry.step] || entry.step}</span>
+                <span>
+                  {STEP_LABELS[entry.step] || entry.step}
+                  {source && (
+                    <span className={`src-badge ${source}`} title={entry.signal?.live_error || ""}>
+                      {SOURCE_LABEL[source] || source}
+                    </span>
+                  )}
+                </span>
                 <span className={pointsClass}>{pointsLabel}</span>
               </div>
               <div>{entry.reason}</div>

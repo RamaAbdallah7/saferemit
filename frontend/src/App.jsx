@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import ScenarioTabs from "./components/ScenarioTabs";
 import AppMock from "./components/AppMock";
 import ReasoningPanel from "./components/ReasoningPanel";
-import { fetchScenarios, decide } from "./api";
+import { fetchScenarios, fetchHealth, decide, CUSTOM_DEFAULT } from "./api";
+
+const CUSTOM_ID = "__custom__";
 
 export default function App() {
   const [scenarios, setScenarios] = useState([]);
+  const [health, setHealth] = useState(null);
   const [activeId, setActiveId] = useState(null);
+  const [customReq, setCustomReq] = useState(CUSTOM_DEFAULT);
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [runKey, setRunKey] = useState(0);
@@ -19,6 +23,7 @@ export default function App() {
         if (list.length) setActiveId(list[0].id);
       })
       .catch((e) => setError(e.message));
+    fetchHealth().then(setHealth).catch(() => setHealth(null));
   }, []);
 
   function handleSelect(id) {
@@ -32,7 +37,7 @@ export default function App() {
     setRunning(true);
     setError(null);
     try {
-      const data = await decide(activeId);
+      const data = await decide(activeId === CUSTOM_ID ? customReq : activeId);
       setResult(data);
       setRunKey((k) => k + 1);
     } catch (e) {
@@ -43,7 +48,16 @@ export default function App() {
     }
   }
 
-  const activeScenario = scenarios.find((s) => s.id === activeId) || null;
+  const tabs = [
+    ...scenarios,
+    { id: CUSTOM_ID, title: "Custom request" },
+  ];
+  const isCustom = activeId === CUSTOM_ID;
+  const activeScenario = isCustom
+    ? { id: CUSTOM_ID, description: "Send any request the agent would receive in production — pick the action, edit the signals, and watch it decide." }
+    : scenarios.find((s) => s.id === activeId) || null;
+
+  const camaraMode = health?.camara_mode ?? "…";
 
   return (
     <div className="app">
@@ -55,11 +69,24 @@ export default function App() {
             <p>AI-orchestrated anti-fraud layer for cross-border remittances</p>
           </div>
         </div>
-        <ScenarioTabs scenarios={scenarios} activeId={activeId} onSelect={handleSelect} />
+        <div className="header-right">
+          <span className={`mode-pill ${camaraMode}`} title="CAMARA data source (GET /api/health)">
+            <span className="dot" />
+            {camaraMode === "live" ? "LIVE · Nokia NaC" : camaraMode === "mock" ? "MOCK data" : "…"}
+          </span>
+          <ScenarioTabs scenarios={tabs} activeId={activeId} onSelect={handleSelect} />
+        </div>
       </header>
 
       <main className="stage">
-        <AppMock scenario={activeScenario} onRun={handleRun} running={running} />
+        <AppMock
+          scenario={activeScenario}
+          isCustom={isCustom}
+          customReq={customReq}
+          onCustomChange={setCustomReq}
+          onRun={handleRun}
+          running={running}
+        />
         <ReasoningPanel result={result} runKey={runKey} />
       </main>
 
@@ -70,8 +97,8 @@ export default function App() {
       )}
 
       <footer className="foot">
-        Backend: FastAPI + LangGraph orchestrating mock CAMARA APIs (SIM Swap, Number Verification, Device
-        Status, Location Verification) on the Nokia Network-as-Code shape. Swap the mocks for live calls per{" "}
+        Backend: FastAPI + LangGraph orchestrating CAMARA APIs (SIM Swap, Number Verification, Device
+        Status, Location Verification) on Nokia Network-as-Code. Live calls fall back to cached data per{" "}
         <code>PROTOTYPE_NOTES.md</code>.
       </footer>
     </div>

@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { PREVIEW_REQUESTS } from "../api";
+import { PREVIEW_REQUESTS, ACTION_TYPES } from "../api";
 
-function Field({ label, id, children }) {
+function ReadOnlyField({ label, children }) {
   return (
     <div className="field">
       <label>{label}</label>
@@ -10,13 +10,28 @@ function Field({ label, id, children }) {
   );
 }
 
-export default function AppMock({ scenario, onRun, running }) {
-  const req = PREVIEW_REQUESTS[scenario?.id] || {};
+function EditField({ label, value, onChange, placeholder }) {
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <input
+        className="value mono input"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+export default function AppMock({ scenario, isCustom, customReq, onCustomChange, onRun, running }) {
+  const preview = PREVIEW_REQUESTS[scenario?.id] || {};
+  const setField = (k) => (v) => onCustomChange({ ...customReq, [k]: v });
 
   return (
     <section className="panel app-mock">
       <h2>
-        Remittance App <span className="mock-tag">mock UI</span>
+        Remittance App <span className="mock-tag">{isCustom ? "editable" : "mock UI"}</span>
       </h2>
 
       <AnimatePresence mode="wait">
@@ -32,10 +47,38 @@ export default function AppMock({ scenario, onRun, running }) {
         </motion.p>
       </AnimatePresence>
 
-      <Field label="Phone number">{req.phone_number || "—"}</Field>
-      <Field label="Action">{req.action_type || "—"}</Field>
-      <Field label="Device">{req.device_fingerprint || "—"}</Field>
-      <Field label="Claimed location">{req.claimed_location || "—"}</Field>
+      {isCustom ? (
+        <>
+          <EditField label="Phone number" value={customReq.phone_number}
+            onChange={setField("phone_number")} placeholder="+99999991000" />
+          <div className="field">
+            <label>Action</label>
+            <div className="seg">
+              {ACTION_TYPES.map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  className={customReq.action_type === a ? "on" : ""}
+                  onClick={() => setField("action_type")(a)}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+          <EditField label="Device fingerprint" value={customReq.device_fingerprint}
+            onChange={setField("device_fingerprint")} placeholder="device-fp-…" />
+          <EditField label="Claimed location" value={customReq.claimed_location}
+            onChange={setField("claimed_location")} placeholder="Dubai, UAE" />
+        </>
+      ) : (
+        <>
+          <ReadOnlyField label="Phone number">{preview.phone_number || "—"}</ReadOnlyField>
+          <ReadOnlyField label="Action">{preview.action_type || "—"}</ReadOnlyField>
+          <ReadOnlyField label="Device">{preview.device_fingerprint || "—"}</ReadOnlyField>
+          <ReadOnlyField label="Claimed location">{preview.claimed_location || "—"}</ReadOnlyField>
+        </>
+      )}
 
       <motion.button
         className="run-btn"
