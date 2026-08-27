@@ -1,15 +1,20 @@
 """
 CAMARA Number Verification API client (live-or-mock).
 
-Live endpoint (Nokia Network-as-Code):
-  POST {base}/camara/number-verification/v0/verify
-  Body: { "phoneNumber": "+9715XXXXXXXX" }
-  CAMARA response: { "devicePhoneNumberVerified": true|false }
+Live: networkAsCode SDK -> client.number_verification.verify(phone_number=...)
+     CAMARA response: { "devicePhoneNumberVerified": bool }
+
+NOTE: CAMARA Number Verification is a 3-legged flow - the subscriber's
+device normally completes an OAuth authorization on-network before the
+verify call. Server-to-server it works only against the NaC simulated
+network (API Playground test numbers). If the live call needs consent it
+raises and we fall back to the mock - which is an acceptable, documented
+degradation per the Tooling Guide.
 
 Without NAC_API_KEY (or if the live call fails) this returns the
-scenario-keyed mock below — see backend/camara_apis/_nac.py.
+scenario-keyed mock below.
 """
-from ._nac import NacError, live_enabled, nac_post
+from ._nac import NacError, as_dict, call, client, live_enabled
 
 SCENARIOS = {
     "clean": {"verified": True},
@@ -31,14 +36,15 @@ class NumberVerificationClient:
         return self._mock(phone_number, scenario, source="mock")
 
     def _live(self, phone_number: str) -> dict:
-        data = nac_post(
-            "/camara/number-verification/v0/verify",
-            {"phoneNumber": phone_number},
-        )
+        resp = call(lambda: client().number_verification.verify(phone_number=phone_number))
+        data = as_dict(resp)
+        verified = data.get("device_phone_number_verified")
+        if verified is None:
+            verified = data.get("devicePhoneNumberVerified")
         return {
             "api": "number_verification",
             "phone_number": phone_number,
-            "verified": bool(data.get("devicePhoneNumberVerified")),
+            "verified": bool(verified),
             "source": "live",
         }
 

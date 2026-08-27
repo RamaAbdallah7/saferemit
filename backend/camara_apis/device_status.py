@@ -1,26 +1,24 @@
 """
 CAMARA Device Status API client (live-or-mock).
 
-Live endpoint (Nokia Network-as-Code):
-  POST {base}/camara/device-status/v0/roaming
-  Body: { "device": { "phoneNumber": "+9715XXXXXXXX" } }
-  CAMARA response: { "roaming": true|false, "countryCode": <int>, ... }
+Live: networkAsCode SDK
+     client.device_status.check_roaming(device={"phone_number": ...})
+       -> { "roaming": bool, "countryCode": int, "countryName": [str] }
+     client.device_status.check_connectivity(device={"phone_number": ...})
+       -> { "connectivityStatus": "CONNECTED_DATA"|"CONNECTED_SMS"|"NOT_CONNECTED" }
 
-Note: `known_device` is NOT a CAMARA signal — device-fingerprint
-recognition is the *remittance app's* job, not the network's. CAMARA
-supplies the network-side signals (roaming, reachability); the app
-supplies whether it has seen this device on this account before. In live
-mode we take roaming from CAMARA and resolve `known_device` from a local
-lookup (KNOWN_DEVICES), which a real deployment would back with its own
-device table.
+`known_device` is NOT a CAMARA signal - device-fingerprint recognition is
+the remittance app's job, not the network's. CAMARA gives us roaming +
+reachability; the app supplies whether it has seen this device on this
+account before (resolved here from KNOWN_DEVICES, which a real deployment
+backs with its own device table).
 
-Without NAC_API_KEY (or if the live call fails) everything falls back to
-the scenario-keyed mock below — see backend/camara_apis/_nac.py.
+Without NAC_API_KEY (or if a live call fails) everything falls back to the
+scenario-keyed mock below.
 """
-from ._nac import NacError, live_enabled, nac_post
+from ._nac import NacError, as_dict, call, client, live_enabled
 
 # Device fingerprints the app has previously seen on a legitimate session.
-# A real deployment reads this from its own datastore per account.
 KNOWN_DEVICES = {"device-fp-known-abc123"}
 
 SCENARIOS = {
@@ -55,16 +53,19 @@ class DeviceStatusClient:
         return self._mock(phone_number, device_fingerprint, scenario, source="mock")
 
     def _live(self, phone_number: str, device_fingerprint: str) -> dict:
-        data = nac_post(
-            "/camara/device-status/v0/roaming",
-            {"device": {"phoneNumber": phone_number}},
-        )
+        device = {"phone_number": phone_number}
+        roaming = as_dict(call(lambda: client().device_status.check_roaming(device=device)))
+        try:
+            conn = as_dict(call(lambda: client().device_status.check_connectivity(device=device)))
+            conn_status = conn.get("connectivity_status") or conn.get("connectivityStatus") or "UNKNOWN"
+        except NacError:
+            conn_status = "UNKNOWN"  # connectivity is a nice-to-have; roaming is the signal we score
         return {
             "api": "device_status",
             "phone_number": phone_number,
             "device_fingerprint": device_fingerprint,
-            "connectivity_status": data.get("connectivityStatus", "UNKNOWN"),
-            "roaming": bool(data.get("roaming")),
+            "connectivity_status": conn_status,
+            "roaming": bool(roaming.get("roaming")),
             "known_device": device_fingerprint in KNOWN_DEVICES,
             "source": "live",
         }

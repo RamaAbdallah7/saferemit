@@ -39,7 +39,7 @@ Everything is optional — with nothing set, SafeRemit runs on mock CAMARA data 
 
 | Var | Effect |
 |---|---|
-| `NAC_API_KEY` | Switches all four CAMARA clients from mock to **live** Nokia Network-as-Code calls (with automatic mock fallback on error). |
+| `NAC_API_KEY` | Switches all four CAMARA clients from mock to **live** Nokia Network-as-Code calls via the `networkAsCode` SDK (with automatic mock fallback on error). See `PROTOTYPE_NOTES.md` for the portal setup. |
 | `GEMINI_API_KEY` | Turns on Gemini-generated rationale text (falls back to the deterministic template). |
 
 `GET /api/health` reports whether you're running `live` or `mock`. Run the tests with `python -m pytest`.

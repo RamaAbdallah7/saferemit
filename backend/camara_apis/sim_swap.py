@@ -1,17 +1,15 @@
 """
 CAMARA SIM Swap API client (live-or-mock).
 
-Live endpoint (Nokia Network-as-Code):
-  POST {base}/camara/sim-swap/v0/check
-  Body: { "phoneNumber": "+9715XXXXXXXX", "maxAge": <hours> }
-  CAMARA response: { "swapped": true|false }
+Live: networkAsCode SDK -> client.sim_swap.check(phone_number, max_age)
+     CAMARA response: { "swapped": bool }
 
 Without NAC_API_KEY (or if the live call fails) this returns the
-scenario-keyed mock below — see backend/camara_apis/_nac.py for why.
+scenario-keyed mock below - see backend/camara_apis/_nac.py.
 """
 from datetime import datetime, timedelta, timezone
 
-from ._nac import NacError, live_enabled, nac_post
+from ._nac import NacError, as_dict, call, client, live_enabled
 
 SCENARIOS = {
     "clean": {
@@ -20,7 +18,7 @@ SCENARIOS = {
     },
     "sim_swap_block": {
         "swapped": True,
-        # swapped 40 minutes ago — well inside the high-risk window
+        # swapped 40 minutes ago - well inside the high-risk window
         "latest_sim_change": (datetime.now(timezone.utc) - timedelta(minutes=40)).isoformat(),
     },
     "mismatch_stepup": {
@@ -43,15 +41,15 @@ class SimSwapClient:
         return self._mock(phone_number, max_age_hours, scenario, source="mock")
 
     def _live(self, phone_number: str, max_age_hours: int) -> dict:
-        data = nac_post(
-            "/camara/sim-swap/v0/check",
-            {"phoneNumber": phone_number, "maxAge": max_age_hours},
-        )
+        resp = call(lambda: client().sim_swap.check(
+            phone_number=phone_number, max_age=max_age_hours,
+        ))
+        data = as_dict(resp)
         return {
             "api": "sim_swap",
             "phone_number": phone_number,
             "swapped": bool(data.get("swapped")),
-            "latest_sim_change": data.get("latestSimChange"),
+            "latest_sim_change": data.get("latest_sim_change") or data.get("latestSimChange"),
             "checked_window_hours": max_age_hours,
             "source": "live",
         }

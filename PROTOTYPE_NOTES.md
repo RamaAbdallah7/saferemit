@@ -9,12 +9,37 @@ This graceful degradation is exactly what the Resource & Tooling Guide tells you
 
 ## To go live with Nokia Network-as-Code
 
-1. Register at https://networkascode.nokia.io/ (each teammate individually — no org setup needed).
-2. In the **API Hub**, subscribe to: SIM Swap, Number Verification, Device Status, Location Verification.
-3. Copy your **`x-rapidapi-key`** (shown on your app / any API's "Endpoints" tab).
-4. `cp .env.example .env` and paste the key into `NAC_API_KEY=`. That's the whole switch — restart the backend and `/api/health` should show `"camara_mode": "live"`.
-5. Test against the portal's **simulator numbers** (in the NaC docs), not real SIMs.
-6. **Verify the request/response mapping** in each `backend/camara_apis/*.py` `_live()` method against your portal's actual "Endpoints" tab — the CAMARA path prefixes and field names there are the source of truth; adjust `_live()` and, if a field name differs, `backend/agent/scoring.py`. The mock clients stay in place as the demo-day safety net — don't delete them.
+The integration is written against the official **`networkAsCode` Python SDK**
+(`pip install networkAsCode`). Each `backend/camara_apis/*.py` `_live()` method
+calls the SDK and falls back to its mock on any error.
+
+1. Register at https://networkascode.nokia.io/ (each teammate individually).
+2. **Create an Application** (`Applications → Create application`).
+3. **Add the APIs to that application** and clear anything sitting in
+   `Approvals`: SIM Swap, Device Status, Location Verification/Retrieval,
+   Number Verification. This is the step that matters — without it the
+   RapidAPI gateway returns `404 {"message":"API doesn't exists"}` even
+   with a valid key.
+4. Copy the application's **`x-rapidapi-key`** into `.env` as `NAC_API_KEY=`
+   (`.env` is gitignored). Restart the backend; `/api/health` shows
+   `"camara_mode": "live"`.
+5. Test against the **API Playground** simulated network (test MSISDNs like
+   `+99999991000`), not real SIMs:
+   `RUN_LIVE_CAMARA=1 python -m pytest backend/tests/test_live_camara.py -v`
+6. If a live response field name differs from what `_live()` expects, adjust
+   the mapping there (and `backend/agent/scoring.py` if a scored field
+   changed). Keep the mock clients — they're the demo-day safety net.
+
+**Known constraint:** CAMARA **Number Verification** is a 3-legged flow
+(the subscriber's device authorizes on-network). Server-to-server it works
+only against the simulated network; in production the frontend would carry
+the OAuth redirect. If the live call needs consent it falls back to mock —
+documented, acceptable degradation per the Tooling Guide.
+
+**Status (2026-08-27):** key is in `.env`, live mode is on, but every call
+currently 404s at the gateway — the portal application still needs its API
+subscriptions added/approved (step 3). The prototype runs fine meanwhile
+on `mock-fallback`.
 
 ## Where to tune the Framer Motion animation
 
