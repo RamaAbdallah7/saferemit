@@ -69,6 +69,31 @@ export const CUSTOM_DEFAULT = {
 
 export const ACTION_TYPES = ["login", "onboarding", "transfer"];
 
+// One-click fills for the Nokia NaC simulator numbers, so a judge can see
+// real live CAMARA calls (and the graceful-degradation path) immediately.
+export const CUSTOM_PRESETS = [
+  {
+    label: "Clean device",
+    note: "+…1001 · not swapped, not roaming, in area",
+    req: { phone_number: "+99999991001", action_type: "login", device_fingerprint: "device-fp-known-abc123", claimed_location: "Dubai, UAE" },
+  },
+  {
+    label: "Compromised device",
+    note: "+…1000 · SIM swapped, roaming, location mismatch",
+    req: { phone_number: "+99999991000", action_type: "transfer", device_fingerprint: "device-fp-unknown-xyz999", claimed_location: "Dubai, UAE" },
+  },
+  {
+    label: "Partial location match",
+    note: "+…1002 · swapped, roaming, partial area match",
+    req: { phone_number: "+99999991002", action_type: "onboarding", device_fingerprint: "device-fp-unknown-new777", claimed_location: "Dubai, UAE" },
+  },
+  {
+    label: "Network error → fallback",
+    note: "+…0500 · gateway returns 500; agent degrades to cached data",
+    req: { phone_number: "+99999990500", action_type: "transfer", device_fingerprint: "device-fp-unknown-xyz999", claimed_location: "Dubai, UAE" },
+  },
+];
+
 export const STEP_LABELS = {
   number_verification: "Number Verification",
   sim_swap: "SIM Swap",

@@ -49,3 +49,16 @@ def test_location_verification_live():
     result = LocationVerificationClient().verify(SIMULATOR_NUMBER, "Dubai, UAE")
     assert result["source"] == "live", result.get("live_error")
     assert result["verification_result"] in {"TRUE", "FALSE", "PARTIAL", "UNKNOWN"}
+
+
+def test_scripted_scenarios_run_live_and_hold_their_verdict():
+    """clean -> ALLOW via +...1001, sim_swap_block -> BLOCK via +...1000,
+    both on real CAMARA calls."""
+    from fastapi.testclient import TestClient
+    from backend.app import app
+
+    client = TestClient(app)
+    for sid, expected in [("clean", "ALLOW"), ("sim_swap_block", "BLOCK")]:
+        body = client.post("/api/decide", json={"scenario": sid}).json()
+        assert body["decision"] == expected
+        assert "live" in body["signal_sources"]

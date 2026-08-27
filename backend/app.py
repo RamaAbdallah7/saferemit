@@ -55,8 +55,13 @@ def api_decide(body: DecideRequest):
             preset = get_scenario(body.scenario)
         except KeyError as e:
             raise HTTPException(status_code=404, detail=str(e))
-        request = preset["request"]
+        request = dict(preset["request"])
         scenario_key = preset["id"]
+        # In live mode, run the scenario against its real simulator MSISDN
+        # so the CAMARA calls are genuine while still telling the scripted
+        # story. Scenarios without a live_phone stay on mock data.
+        if config.USE_LIVE_CAMARA and preset.get("live_phone"):
+            request["phone_number"] = preset["live_phone"]
     else:
         if not body.phone_number:
             raise HTTPException(status_code=400, detail="phone_number is required when no scenario is given")

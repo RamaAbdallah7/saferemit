@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { PREVIEW_REQUESTS, ACTION_TYPES } from "../api";
+import { PREVIEW_REQUESTS, ACTION_TYPES, CUSTOM_PRESETS } from "../api";
 
 function ReadOnlyField({ label, children }) {
   return (
@@ -49,6 +49,14 @@ export default function AppMock({ scenario, isCustom, customReq, onCustomChange,
 
       {isCustom ? (
         <>
+          <div className="presets">
+            {CUSTOM_PRESETS.map((p) => (
+              <button key={p.label} type="button" className="preset" title={p.note}
+                onClick={() => onCustomChange({ ...customReq, ...p.req })}>
+                {p.label}
+              </button>
+            ))}
+          </div>
           <EditField label="Phone number" value={customReq.phone_number}
             onChange={setField("phone_number")} placeholder="+99999991000" />
           <div className="field">

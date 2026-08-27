@@ -37,11 +37,28 @@ the demo it degrades to mock (documented, acceptable per the Tooling Guide).
 TODO: try the NaC Authorization Server (client-credentials) to get a bearer
 token for the Simulator, then pass it through `_nac.nac_post`.
 
-**Demo note:** each Simulator MSISDN has fixed behaviour (e.g. `+99999991000`
-→ swapped=true, roaming=true). The three scripted scenarios still run on
-mock data; live mode is for showing judges the calls are real. To script
-live scenarios, find Simulator numbers with clean vs. compromised profiles
-in the portal docs.
+### Simulator MSISDN map (from the NaC docs)
+
+| Number | SIM Swap | Roaming | Location Verification |
+|---|---|---|---|
+| `+99999991001` | not swapped | not roaming | TRUE (in area) |
+| `+99999991000` | swapped | roaming | FALSE (out of area) |
+| `+99999991002` | swapped | roaming | PARTIAL |
+| `+99999991003` | swapped | roaming | UNKNOWN |
+| `+999999904xx` / `905xx` | — | HTTP 4xx/5xx | HTTP 4xx/5xx |
+
+**In live mode the scripted scenarios use these:** `clean` runs against
+`+99999991001` → **ALLOW**, `sim_swap_block` against `+99999991000` →
+**BLOCK** — both as real CAMARA calls. `mismatch_stepup` has no single
+simulator number that lands between the thresholds, so it stays on mock
+data (labelled in the UI). The **Custom request** tab has one-click presets
+for the simulator numbers, including `+99999990500` to demo the
+graceful-degradation path.
+
+**Number Verification** is CAMARA 3-legged OAuth — the subscriber's device
+must open the consent URL over mobile data. Not doable server-side; it
+degrades to mock (`signal_sources` will show `mock-fallback` for that one
+step even in live mode). In production the mobile app carries the redirect.
 
 ## Where to tune the Framer Motion animation
 

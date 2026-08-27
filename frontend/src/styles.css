@@ -119,6 +119,18 @@ body{
 }
 .field input.input:focus{ border-color: var(--accent); }
 
+.presets{ display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.preset{
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.preset:hover{ color: var(--accent-ink); border-color: var(--accent); }
+
 .seg{ display: flex; gap: 6px; }
 .seg button{
   flex: 1;
