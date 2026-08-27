@@ -2,40 +2,54 @@
 
 Matches the submission requirement: "A screen-recorded video (max 3 minutes) demonstrating the working prototype, API calls, and UI/UX."
 
-**Setup before recording:** run the backend (`uvicorn backend.app:app`), open `http://127.0.0.1:8000` full-screen, close other tabs/notifications.
+**Setup before recording**
+1. `cp .env.example .env` and set `NAC_API_KEY` (see `PROTOTYPE_NOTES.md`) so the header shows **LIVE · Nokia NaC**.
+2. `cd frontend && npm run build` then, from the project root, `python -m uvicorn backend.app:app`.
+3. Open `http://127.0.0.1:8000` full-screen, close other tabs/notifications.
+4. Do one dry run of each scenario first — live calls take ~2-3s, so know the pacing.
 
 ---
 
-### 0:00–0:20 — Hook + problem (voiceover over the UI, no clicking yet)
+### 0:00–0:18 — Hook + problem (voiceover over the UI, no clicking yet)
 
-> "Every payday, migrant workers across the GCC send remittances home — and that predictable flow is exactly what fraud rings target. Two patterns dominate: SIM-swap account takeover, and synthetic mule onboarding. Static OTP and document checks can't catch either in real time. SafeRemit can."
+> "Every payday, migrant workers across the GCC send money home — a predictable, high-value flow that fraud rings target two ways: SIM-swap account takeover, and synthetic mule onboarding. Static OTP and document checks can't catch either in real time. SafeRemit reads the signals only the network can see."
 
-### 0:20–0:55 — Scenario 1: Clean login (click "Clean login" tab → "Run SafeRemit decision")
+Point at the green **LIVE · Nokia NaC** pill in the header.
 
-> "Here's a returning user logging in normally. Watch the agent: it checks Number Verification, checks for a recent SIM swap — both clean — so it makes an efficiency call: no need to pull device or location data. That's the agent deciding which CAMARA API is worth calling, not just running a fixed checklist."
+### 0:18–0:52 — Scenario 1: Clean login  ·  ALLOW
 
-Let the trace animate, point at the ALLOW badge and the risk score.
+Click **Clean login** → **Run SafeRemit decision**.
 
-### 0:55–1:45 — Scenario 2: SIM-swap takeover (click "SIM-swap takeover attempt" → run)
+> "A returning user, usual device. The agent runs the two cheap checks — Number Verification and SIM Swap — in parallel. Both clean, so it makes an efficiency call and stops: no device or location lookup. That decision — which API is worth pulling — is what makes this an agent, not a checklist."
 
-> "Same account. This time the SIM was swapped 40 minutes ago from an unrecognized device. The agent immediately escalates — pulls Device Status and Location Verification too — and fuses all four signals into one decision: block, with a plain-language reason a fraud analyst can act on immediately, not just a score."
+Point at the `LIVE` badge on SIM Swap, the fast-path note, the **ALLOW · risk score 0** badge.
 
-Point at each trace line as it appears, then the BLOCK badge + rationale text.
+### 0:52–1:40 — Scenario 2: SIM-swap takeover  ·  BLOCK
 
-### 1:45–2:30 — Scenario 3: Mismatched onboarding (click "Mismatched onboarding" → run)
+Click **SIM-swap takeover attempt** → **Run**.
 
-> "Now a brand-new account onboarding — that alone is a sensitive action, so the agent proactively pulls every signal, even before anything looks wrong. It finds a roaming, unrecognized device and a location mismatch — not damning enough to block outright, but exactly the case where step-up verification protects the user without killing a legitimate signup."
+> "Same account. The SIM was swapped minutes ago from an unrecognized device. SIM Swap comes back positive — a real call to Nokia's network — so the agent escalates, pulls Device Status and Location Verification in parallel, and fuses all four signals: risk 100, block, with a plain-language reason a fraud analyst can act on."
 
-Point at STEP_UP badge.
+Point at each `LIVE` badge as the trace fills, then the red **BLOCK** verdict and the rationale.
 
-### 2:30–2:50 — Architecture + business model (screen: architecture diagram from pitch deck, or just narrate over the UI)
+### 1:40–2:20 — Scenario 3: Mismatched onboarding  ·  STEP-UP
 
-> "Under the hood: a LangGraph agent orchestrates four CAMARA APIs on Nokia Network-as-Code, with Gemini generating the analyst-facing rationale. It's B2B2C — licensed to remittance apps, mobile-money operators, and banks per decision, and the same pattern generalizes to telco fraud and e-commerce account takeover."
+Click **Mismatched onboarding** → **Run**.
 
-### 2:50–3:00 — Close
+> "A brand-new account onboarding — a sensitive action, so the agent proactively pulls every signal. Roaming, unrecognized device, location mismatch: not damning enough to block, exactly the case for step-up verification — protect the user without killing a legitimate signup."
 
-> "SafeRemit — stopping remittance fraud before the money moves, with zero added friction for everyone else. Thank you."
+Point at the amber **STEP-UP** badge. (This scenario runs on cached signal data — note the `mock` badges — because no single simulator number lands between the thresholds; see `PROTOTYPE_NOTES.md`.)
+
+### 2:20–2:45 — Custom request + graceful degradation
+
+Click **Custom request** → the **Network error → fallback** preset → **Run**.
+
+> "And when a live call fails — here the gateway returns a 500 — the agent degrades to cached data and still decides. It never stalls mid-transaction."
+
+### 2:45–3:00 — Close (screen: pitch deck architecture diagram, or the UI)
+
+> "A LangGraph agent orchestrating CAMARA APIs on Nokia Network-as-Code, Gemini writing the rationale — the tooling guide's own recommended stack. Licensed per decision to remittance apps, operators and banks. SafeRemit — stopping remittance fraud before the money moves. Thank you."
 
 ---
 
-**Filming tips:** do a dry run once before recording so the trace animation timing feels natural on camera. Keep your cursor deliberate — pause on each trace line for ~1 second so judges can actually read it.
+**Filming tips:** keep the cursor deliberate — pause ~1s on each trace line so judges can read it. If a live call is slow on the day, the mock fallback still produces the right verdict, so the demo is safe either way.

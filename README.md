@@ -105,7 +105,9 @@ frontend-vanilla/        original plain HTML/JS/CSS version — zero build step,
                           kept as a fallback (see backend/app.py)
 demo/
   DEMO_SCRIPT.md        script for the 3-minute submission video
-PROTOTYPE_NOTES.md      what's mocked vs. real, how to go live, compliance checklist
+docs/
+  pitch-deck.html      single-file pitch (problem, agent, live status, business)
+PROTOTYPE_NOTES.md      what's live vs. mocked, how to go live, compliance checklist
 ```
 
 ## Tech stack (and why, per the AI Resource & Tooling Guide)
@@ -116,6 +118,10 @@ This is the Guide's recommended **"Intermediate stack (Python)"** — LangGraph 
 - **CAMARA APIs on Nokia Network-as-Code** — SIM Swap, Device Status (roaming + connectivity) and Location Verification run as **live calls** against the NaC apihub gateway in Simulator mode; Number Verification is wired but needs the OAuth leg. Every call degrades to cached mock data on failure.
 - **Google AI Studio / Gemini** (`gemini-2.5-flash`) — §3, "Hosted APIs with a free tier." Rewrites the deterministic rationale into a tighter analyst-facing sentence. Optional — the deterministic template is the demo-day safety net.
 - **FastAPI + React/Vite** — kept simple so any judge can clone and run it in under a minute with one command. Live CAMARA calls degrade gracefully to cached mock data (Guide's tip: "a recorded fallback keeps the demo running").
+
+## Pitch
+
+`docs/pitch-deck.html` — a single-file, self-contained pitch (problem, the agent, live CAMARA status, business model). Open it in a browser, or publish it as a shareable page.
 
 ## Submission checklist
 
