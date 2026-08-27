@@ -1,19 +1,33 @@
 """
-Mock for the CAMARA Location Verification API.
+CAMARA Location Verification API client (live-or-mock).
 
-Real endpoint (Nokia Network-as-Code):
-  POST https://network-as-code.p-eu.rapidapi.com/camara/location-verification/v0/verify
+Live endpoint (Nokia Network-as-Code):
+  POST {base}/camara/location-verification/v0/verify
   Body: { "device": { "phoneNumber": "+9715XXXXXXXX" },
-          "latitude": 25.276987, "longitude": 55.296249, "accuracy": 5000 }
-  Docs: https://developer.networkascode.nokia.io/
+          "area": { "areaType": "CIRCLE",
+                    "center": { "latitude": <lat>, "longitude": <lon> },
+                    "radius": <metres> } }
+  CAMARA response: { "verificationResult": "TRUE"|"FALSE"|"PARTIAL",
+                     "matchRate": 0-100 }
 
-Real response shape (CAMARA spec):
-  { "verificationResult": "TRUE" | "FALSE" | "PARTIAL", "matchRate": 0-100 }
+The remittance app knows a *claimed location* as text ("Dubai, UAE"); a
+real deployment geocodes that. For the demo we resolve the handful of
+scenario cities from GAZETTEER below.
 
-TODO (swap-in):
-    device = client.devices.get(phone_number=phone_number)
-    return device.location.verify(latitude=lat, longitude=lon, radius=accuracy_m)
+Without NAC_API_KEY (or if the live call fails) this returns the
+scenario-keyed mock — see backend/camara_apis/_nac.py.
 """
+from ._nac import NacError, live_enabled, nac_post
+
+# Minimal geocoder for the demo scenarios. A real deployment would call a
+# geocoding service here.
+GAZETTEER = {
+    "dubai, uae": (25.2048, 55.2708),
+    "abu dhabi, uae": (24.4539, 54.3773),
+    "cairo, egypt": (30.0444, 31.2357),
+    "riyadh, saudi arabia": (24.7136, 46.6753),
+}
+DEFAULT_RADIUS_M = 5000
 
 SCENARIOS = {
     "clean": {"verification_result": "TRUE", "match_rate": 97},
@@ -23,14 +37,51 @@ SCENARIOS = {
 
 
 class LocationVerificationClient:
-    """Mock CAMARA Location Verification client."""
+    """CAMARA Location Verification client."""
 
     def verify(self, phone_number: str, claimed_location: str, scenario: str = "clean") -> dict:
-        data = SCENARIOS.get(scenario, SCENARIOS["clean"])
+        coords = GAZETTEER.get(claimed_location.strip().lower())
+        if live_enabled() and coords is not None:
+            try:
+                return self._live(phone_number, claimed_location, coords)
+            except NacError as exc:
+                return self._mock(phone_number, claimed_location, scenario,
+                                  source="mock-fallback", live_error=str(exc))
+        return self._mock(phone_number, claimed_location, scenario, source="mock")
+
+    def _live(self, phone_number: str, claimed_location: str, coords: tuple[float, float]) -> dict:
+        lat, lon = coords
+        data = nac_post(
+            "/camara/location-verification/v0/verify",
+            {
+                "device": {"phoneNumber": phone_number},
+                "area": {
+                    "areaType": "CIRCLE",
+                    "center": {"latitude": lat, "longitude": lon},
+                    "radius": DEFAULT_RADIUS_M,
+                },
+            },
+        )
         return {
+            "api": "location_verification",
+            "phone_number": phone_number,
+            "claimed_location": claimed_location,
+            "verification_result": data.get("verificationResult", "UNKNOWN"),
+            "match_rate": data.get("matchRate", 0),
+            "source": "live",
+        }
+
+    def _mock(self, phone_number: str, claimed_location: str, scenario: str,
+              *, source: str, live_error: str | None = None) -> dict:
+        data = SCENARIOS.get(scenario, SCENARIOS["clean"])
+        result = {
             "api": "location_verification",
             "phone_number": phone_number,
             "claimed_location": claimed_location,
             "verification_result": data["verification_result"],
             "match_rate": data["match_rate"],
+            "source": source,
         }
+        if live_error:
+            result["live_error"] = live_error
+        return result

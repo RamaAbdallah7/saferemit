@@ -12,18 +12,19 @@ in as ground truth, so a failed/slow Gemini call never changes the
 decision — only the wording of the explanation, with automatic fallback
 to the template if the call errors or times out.
 
-IMPORTANT: confirm Gemini is actually on the hackathon's approved AI
-Resource & Tooling Guide before relying on this in your submission — see
-PROTOTYPE_NOTES.md. If it isn't approved, leave GEMINI_API_KEY unset and
+Gemini / Google AI Studio is on the hackathon's AI Resource & Tooling
+Guide (section 3, "Hosted APIs with a free tier" — Gemini 2.5 Flash/Pro).
+If you still prefer zero external calls, leave GEMINI_API_KEY unset and
 the deterministic explainer is your rationale generator, no code changes
 needed.
 """
-import os
 import requests
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-GEMINI_TIMEOUT_SECONDS = 4
+from .. import config
+
+GEMINI_API_KEY = config.GEMINI_API_KEY
+GEMINI_MODEL = config.GEMINI_MODEL
+GEMINI_TIMEOUT_SECONDS = config.GEMINI_TIMEOUT_SECONDS
 
 
 def _template_rationale(decision: str, score: int, trace: list[dict]) -> str:

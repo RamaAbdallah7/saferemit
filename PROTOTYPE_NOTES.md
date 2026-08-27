@@ -2,18 +2,19 @@
 
 ## What's real vs. mocked right now
 
-- **Real:** the FastAPI backend, the LangGraph orchestration agent, the risk-scoring logic, the escalation/branching decision, the rationale generator (with optional live Gemini call), and the full frontend UI.
-- **Mocked:** the four CAMARA API responses (`backend/camara_apis/*.py`). Each mock returns realistic, scenario-keyed canned data shaped like the real Nokia Network-as-Code response, with a `TODO (swap-in)` comment showing exactly what real call replaces it.
+- **Real:** the FastAPI backend, the LangGraph orchestration agent, the risk-scoring logic, the escalation/branching decision, the rationale generator (with optional live Gemini call), the full frontend UI, and the `pytest` suite (`python -m pytest`).
+- **Live-or-mock:** the four CAMARA API clients (`backend/camara_apis/*.py`). Each one calls the real Nokia Network-as-Code endpoint **when `NAC_API_KEY` is set**, and otherwise returns realistic scenario-keyed canned data. If a live call errors or times out it falls back to the mock automatically and marks the signal `source: "mock-fallback"`.
 
-This split is deliberate and matches the Resource & Tooling Guide's own advice: *"Cache demo data. Live API calls fail at the worst moment; a recorded fallback keeps the demo running."* Keep the mocks working as your safety net even after you wire up live calls.
+This graceful degradation is exactly what the Resource & Tooling Guide tells you to build: *"Have a clear fallback when an API or model is rate-limited"* and *"Cache demo data. Live API calls fail at the worst moment."* `GET /api/health` reports whether you're currently `live` or `mock`, and every decision result carries `camara_mode` + `signal_sources`.
 
-## To swap in live Nokia Network-as-Code calls
+## To go live with Nokia Network-as-Code
 
-1. Register at https://networkascode.nokia.io/ (each teammate can register individually — no org setup needed).
-2. Get your API key/token from the developer portal.
-3. In each `backend/camara_apis/*.py` file, replace the body of the client method with the real SDK/HTTP call shown in that file's docstring. Keep the same return shape (or update `backend/agent/scoring.py` to match) so the orchestrator doesn't need to change.
-4. Use the portal's simulator numbers for testing rather than real SIMs — this is what the platform is built for.
-5. Keep the mock clients in the codebase (don't delete them) — fall back to them if the live sandbox is rate-limited or flaky during your actual demo.
+1. Register at https://networkascode.nokia.io/ (each teammate individually — no org setup needed).
+2. In the **API Hub**, subscribe to: SIM Swap, Number Verification, Device Status, Location Verification.
+3. Copy your **`x-rapidapi-key`** (shown on your app / any API's "Endpoints" tab).
+4. `cp .env.example .env` and paste the key into `NAC_API_KEY=`. That's the whole switch — restart the backend and `/api/health` should show `"camara_mode": "live"`.
+5. Test against the portal's **simulator numbers** (in the NaC docs), not real SIMs.
+6. **Verify the request/response mapping** in each `backend/camara_apis/*.py` `_live()` method against your portal's actual "Endpoints" tab — the CAMARA path prefixes and field names there are the source of truth; adjust `_live()` and, if a field name differs, `backend/agent/scoring.py`. The mock clients stay in place as the demo-day safety net — don't delete them.
 
 ## Where to tune the Framer Motion animation
 
@@ -33,12 +34,16 @@ The frontend was rebuilt on React + Vite specifically so this part is easy to it
 
 ## Compliance checklist against the hackathon rules
 
-- [x] Uses CAMARA APIs on the Nokia NaC platform (SIM Swap, Number Verification, Device Status, Location Verification) — mocked now, swap-in path documented above.
-- [x] AI agent layer intelligently orchestrates those APIs as real-time signals, not user-triggered buttons (see `backend/agent/orchestrator.py` — the escalation branch is the "agentic" part).
-- [x] Agent layer built using a tool from the Resource & Tooling Guide: **LangGraph** (section 2) for orchestration, **Google AI Studio / Gemini** (section 3) for the optional reasoning rewrite.
-- [x] Original code, written for this hackathon.
-- [x] Aligned to Theme 4 — Secure Fintech, Payments & Anti-Fraud Innovation.
-- [ ] **You still need to:** confirm your Nokia NaC sandbox access works end-to-end before the demo, record the 3-minute video, and push this repo to GitHub (both required submission deliverables).
+- [x] Uses **≥1 CAMARA API on Nokia Network-as-Code** — four: SIM Swap, Number Verification, Device Status, Location Verification. Live-or-mock; live path is one env var away.
+- [x] **AI agent layer** orchestrates those APIs as trusted real-time signals, not user-triggered buttons — `backend/agent/orchestrator.py`, the conditional escalation edge is the agentic part. Matches the Guide's tip: *"Treat each CAMARA API as a tool the agent decides when to call."*
+- [x] **Agent built only with Resource & Tooling Guide tools** — verified against the guide PDF: **LangGraph** (§2, "Code-first agent frameworks") + **Google AI Studio / Gemini** (§3, "Hosted APIs with a free tier"). No external tooling in the agent layer.
+- [x] Architecture matches the Guide's recommended **"Intermediate stack (Python)"**: LangGraph agent + Gemini + CAMARA APIs as agent tools.
+- [x] Follows the Guide's demo tips: graceful degradation, cached demo data, reasoning trace shown on screen.
+- [x] **Original code**, written for this hackathon (repo history starts 2026-08-27, inside the Jul 1 – Sep 13 window).
+- [x] Aligned to **Theme 4** — Secure Fintech, Payments & Anti-Fraud Innovation.
+- [x] Team size 2 (≤ 5).
+- [ ] **Still to do:** get the Nokia NaC key + test the 4 live calls against simulator numbers; update the pitch deck (architecture + business model); record the 3-minute demo video; put the GitHub link in the final submission.
+- [ ] **Check yourselves:** both team members are 18+ and resident in an Arab League country or Türkiye.
 
 ## Suggested day-by-day for the ~17 days you have
 

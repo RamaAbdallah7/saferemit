@@ -145,10 +145,17 @@ def node_location_verification(state: AgentState) -> dict:
 def node_finalize(state: AgentState) -> dict:
     decision = decision_for_score(state["score"])
     rationale = explain(decision, state["score"], state["trace"])
+    signal_sources = sorted({
+        s["signal"]["source"]
+        for s in state["trace"]
+        if s.get("signal") and "source" in s["signal"]
+    })
     result = {
         "decision": decision,
         "risk_score": state["score"],
         "apis_called": [s["api"] for s in state["trace"] if s["api"]],
+        "camara_mode": "live" if "live" in signal_sources else "mock",
+        "signal_sources": signal_sources,
         "rationale": rationale["text"],
         "rationale_source": rationale["source"],
         "trace": state["trace"],

@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from . import config
 from .agent.orchestrator import SafeRemitAgent
 from .scenarios import list_scenarios, get_scenario
 
@@ -33,6 +34,13 @@ class DecideRequest(BaseModel):
     action_type: str | None = "login"
     device_fingerprint: str | None = None
     claimed_location: str | None = None
+
+
+@app.get("/api/health")
+def api_health():
+    """Non-secret runtime summary — lets a judge see at a glance whether
+    the demo is running on live CAMARA calls or mock data."""
+    return {"status": "ok", **config.status()}
 
 
 @app.get("/api/scenarios")
