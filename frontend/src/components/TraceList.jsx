@@ -33,7 +33,9 @@ export default function TraceList({ trace, runKey }) {
       <AnimatePresence>
         {trace.map((entry, i) => {
           const pointsClass = entry.points > 0 ? "t-points" : "t-points zero";
-          const pointsLabel = entry.api ? `+${entry.points} pts · score ${entry.running_score}` : "";
+          const pointsLabel = entry.api
+            ? `+${entry.points} pts · score ${Math.min(100, entry.running_score)}`
+            : "";
           const source = entry.signal?.source;
           return (
             <motion.li key={`${runKey}-${i}`} variants={itemVariants}>

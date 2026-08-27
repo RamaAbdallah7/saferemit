@@ -28,6 +28,7 @@ GEMINI_TIMEOUT_SECONDS = config.GEMINI_TIMEOUT_SECONDS
 
 
 def _template_rationale(decision: str, score: int, trace: list[dict]) -> str:
+    score = min(100, score)
     driving = [step for step in trace if step["points"] > 0]
     if decision == "ALLOW":
         if not driving:
@@ -42,6 +43,7 @@ def _template_rationale(decision: str, score: int, trace: list[dict]) -> str:
 
 def explain(decision: str, score: int, trace: list[dict]) -> dict:
     """Returns {"text": str, "source": "template" | "gemini"}."""
+    score = min(100, score)
     template_text = _template_rationale(decision, score, trace)
 
     if not GEMINI_API_KEY:

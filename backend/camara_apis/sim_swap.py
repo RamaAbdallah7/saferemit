@@ -46,17 +46,19 @@ class SimSwapClient:
                                   source="mock-fallback", live_error=str(exc))
         return self._mock(phone_number, max_age_hours, scenario, source="mock")
 
-    def _live(self, phone_number: str, max_age_hours: int) -> dict:
+    def _live(self, phone_number: str, max_age_hours: int, *, with_date: bool = False) -> dict:
         data = nac_post(_CHECK, {"phoneNumber": phone_number, "maxAge": max_age_hours})
         swapped = bool(data.get("swapped"))
         latest_sim_change = None
-        if swapped:
+        # The retrieve-date call is display-only and adds a full round trip,
+        # so it's opt-in (with_date=True) — the check boolean is what we score.
+        if swapped and with_date:
             try:
                 latest_sim_change = nac_post(
                     _RETRIEVE_DATE, {"phoneNumber": phone_number}
                 ).get("latestSimChange")
             except NacError:
-                pass  # timestamp is display-only; the boolean is what we score
+                pass
         return {
             "api": "sim_swap",
             "phone_number": phone_number,

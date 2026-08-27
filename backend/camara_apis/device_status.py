@@ -57,13 +57,17 @@ class DeviceStatusClient:
                                   source="mock-fallback", live_error=str(exc))
         return self._mock(phone_number, device_fingerprint, scenario, source="mock")
 
-    def _live(self, phone_number: str, device_fingerprint: str) -> dict:
+    def _live(self, phone_number: str, device_fingerprint: str, *, with_connectivity: bool = False) -> dict:
         device = {"device": {"phoneNumber": phone_number}}
         roaming = nac_post(_ROAMING, device)
-        try:
-            conn_status = nac_post(_CONNECTIVITY, device).get("connectivityStatus", "UNKNOWN")
-        except NacError:
-            conn_status = "UNKNOWN"  # connectivity is nice-to-have; roaming is the scored signal
+        # Connectivity is display-only (roaming is the scored signal) and adds
+        # a round trip, so it's opt-in.
+        conn_status = "not checked"
+        if with_connectivity:
+            try:
+                conn_status = nac_post(_CONNECTIVITY, device).get("connectivityStatus", "UNKNOWN")
+            except NacError:
+                conn_status = "UNKNOWN"
         return {
             "api": "device_status",
             "phone_number": phone_number,

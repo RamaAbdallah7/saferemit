@@ -7,48 +7,50 @@ frameworks"). LangGraph models the agent as a directed graph of nodes and
 conditional edges, which maps directly onto how this agent actually
 behaves: it is NOT a fixed pipeline that calls all four CAMARA APIs on
 every request. It behaves like a fraud analyst would — cheap, low-risk
-checks first, escalating to deeper (slower, costlier) signals only when
-the transaction is sensitive or an early signal already looks wrong.
-That's what the Guide's own tip means by "agentic": the agent decides
-which CAMARA API to call next, it isn't just a button the user presses.
+checks first, escalating to deeper signals only when the transaction is
+sensitive or an early signal already looks wrong. That's what the Guide's
+own tip means by "agentic": the agent decides which CAMARA API to call
+next, it isn't just a button the user presses.
 
 Graph:
 
-    number_verification -> sim_swap -> [conditional] -> finalize
-                                            |
-                                    escalate?  --yes--> device_status -> location_verification -> finalize
-                                            |
-                                            --no--> finalize (fast path)
+    initial_checks ──[conditional]──> escalated_checks ──> finalize
+       (number verification            (device status +          │
+        + SIM swap, in parallel)        location, in parallel)    │
+                       │                                          │
+                       └────── fast path (clean login) ───────────┘
+
+Within a node the independent CAMARA calls run concurrently — same
+signals, roughly half the wall-clock latency, which matters when each
+call is a real round trip to the operator network.
 
 Escalation triggers when:
   - the action itself is sensitive (onboarding / transfer), or
-  - an early signal already looks wrong (SIM swap flagged, or the
-    number failed carrier verification).
-A routine, clean login skips the device/location calls entirely — faster
-and cheaper in production, and a concrete "why an agent, not a hardcoded
-checklist" talking point for judges.
+  - an early signal already looks wrong (SIM swap flagged, or the number
+    failed carrier verification).
 
 `finalize` fuses every signal actually pulled into a 0-100 risk score
 with a running trace, maps it to ALLOW / STEP_UP / BLOCK, and calls the
 rationale generator (Gemini, per the Guide's "Hosted APIs with a free
 tier" list, with an automatic deterministic fallback — see rationale.py).
 """
-from typing import TypedDict, List, Dict, Any, Optional
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional, TypedDict
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
+from .rationale import explain
 from .scoring import (
-    score_sim_swap,
-    score_number_verification,
+    decision_for_score,
     score_device_status,
     score_location_verification,
-    decision_for_score,
+    score_number_verification,
+    score_sim_swap,
 )
-from .rationale import explain
-from ..camara_apis.sim_swap import SimSwapClient
-from ..camara_apis.number_verification import NumberVerificationClient
 from ..camara_apis.device_status import DeviceStatusClient
 from ..camara_apis.location_verification import LocationVerificationClient
+from ..camara_apis.number_verification import NumberVerificationClient
+from ..camara_apis.sim_swap import SimSwapClient
 
 SENSITIVE_ACTIONS = {"onboarding", "transfer"}
 
@@ -70,76 +72,81 @@ class AgentState(TypedDict):
     result: Optional[Dict[str, Any]]
 
 
-def _append(state: AgentState, entry: Dict[str, Any]) -> List[Dict[str, Any]]:
-    return state["trace"] + [entry]
+def _entry(step: str, api: Optional[str], signal, points: int, reason: str, running: int) -> dict:
+    return {"step": step, "api": api, "signal": signal,
+            "points": points, "reason": reason, "running_score": running}
 
 
-def node_number_verification(state: AgentState) -> dict:
-    nv = _number_verification_client.verify(state["phone_number"], scenario=state["scenario"])
-    points, reason = score_number_verification(nv)
-    score = state["score"] + points
-    entry = {"step": "number_verification", "api": "number_verification", "signal": nv,
-              "points": points, "reason": reason, "running_score": score}
-    return {"score": score, "trace": _append(state, entry)}
+def node_initial_checks(state: AgentState) -> dict:
+    """Number Verification + SIM Swap — the cheap, always-run checks. They
+    only need the phone number, so they run concurrently."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_nv = pool.submit(_number_verification_client.verify,
+                           state["phone_number"], scenario=state["scenario"])
+        f_ss = pool.submit(_sim_swap_client.check,
+                           state["phone_number"], scenario=state["scenario"])
+        nv, ss = f_nv.result(), f_ss.result()
 
+    score = state["score"]
+    trace = list(state["trace"])
 
-def node_sim_swap(state: AgentState) -> dict:
-    ss = _sim_swap_client.check(state["phone_number"], scenario=state["scenario"])
-    points, reason = score_sim_swap(ss)
-    score = state["score"] + points
-    entry = {"step": "sim_swap", "api": "sim_swap", "signal": ss,
-              "points": points, "reason": reason, "running_score": score}
+    nv_points, nv_reason = score_number_verification(nv)
+    score += nv_points
+    trace.append(_entry("number_verification", "number_verification", nv, nv_points, nv_reason, score))
 
-    early_flag = ss["swapped"] or not _last_signal_verified(state)
+    ss_points, ss_reason = score_sim_swap(ss)
+    score += ss_points
+    trace.append(_entry("sim_swap", "sim_swap", ss, ss_points, ss_reason, score))
+
+    early_flag = ss["swapped"] or not nv["verified"]
     sensitive = state["action_type"] in SENSITIVE_ACTIONS
     escalate = bool(early_flag or sensitive)
 
-    reason_note = (
-        "sensitive action AND an early suspicious signal" if (sensitive and early_flag)
-        else "sensitive action type" if sensitive
-        else "early signal already suspicious" if early_flag
-        else None
-    )
-    trace = _append(state, entry)
-    if reason_note:
-        trace = trace + [{"step": "escalation_decision", "api": None, "signal": None,
-                           "points": 0, "reason": f"Escalating to device + location checks ({reason_note}).",
-                           "running_score": score}]
+    if sensitive and early_flag:
+        note = "sensitive action AND an early suspicious signal"
+    elif sensitive:
+        note = "sensitive action type"
+    elif early_flag:
+        note = "early signal already suspicious"
     else:
-        trace = trace + [{"step": "escalation_decision", "api": None, "signal": None,
-                           "points": 0, "reason": "Routine login, clean early signals — skipping device/location checks (fast path).",
-                           "running_score": score}]
+        note = None
+
+    if note:
+        trace.append(_entry("escalation_decision", None, None, 0,
+                            f"Escalating to device + location checks ({note}).", score))
+    else:
+        trace.append(_entry("escalation_decision", None, None, 0,
+                            "Routine login, clean early signals — skipping device/location checks (fast path).", score))
 
     return {"score": score, "trace": trace, "escalate": escalate}
 
 
-def _last_signal_verified(state: AgentState) -> bool:
-    for entry in reversed(state["trace"]):
-        if entry["step"] == "number_verification":
-            return entry["signal"]["verified"]
-    return True
-
-
-def route_after_sim_swap(state: AgentState) -> str:
+def route_after_initial(state: AgentState) -> str:
     return "escalate" if state["escalate"] else "fast_path"
 
 
-def node_device_status(state: AgentState) -> dict:
-    ds = _device_status_client.check(state["phone_number"], state["device_fingerprint"], scenario=state["scenario"])
-    points, reason = score_device_status(ds)
-    score = state["score"] + points
-    entry = {"step": "device_status", "api": "device_status", "signal": ds,
-              "points": points, "reason": reason, "running_score": score}
-    return {"score": score, "trace": _append(state, entry)}
+def node_escalated_checks(state: AgentState) -> dict:
+    """Device Status + Location Verification — the deeper signals, pulled
+    only when the agent decided to escalate. Independent, so concurrent."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_ds = pool.submit(_device_status_client.check, state["phone_number"],
+                           state["device_fingerprint"], scenario=state["scenario"])
+        f_lv = pool.submit(_location_verification_client.verify, state["phone_number"],
+                           state["claimed_location"], scenario=state["scenario"])
+        ds, lv = f_ds.result(), f_lv.result()
 
+    score = state["score"]
+    trace = list(state["trace"])
 
-def node_location_verification(state: AgentState) -> dict:
-    lv = _location_verification_client.verify(state["phone_number"], state["claimed_location"], scenario=state["scenario"])
-    points, reason = score_location_verification(lv)
-    score = state["score"] + points
-    entry = {"step": "location_verification", "api": "location_verification", "signal": lv,
-              "points": points, "reason": reason, "running_score": score}
-    return {"score": score, "trace": _append(state, entry)}
+    ds_points, ds_reason = score_device_status(ds)
+    score += ds_points
+    trace.append(_entry("device_status", "device_status", ds, ds_points, ds_reason, score))
+
+    lv_points, lv_reason = score_location_verification(lv)
+    score += lv_points
+    trace.append(_entry("location_verification", "location_verification", lv, lv_points, lv_reason, score))
+
+    return {"score": score, "trace": trace}
 
 
 def node_finalize(state: AgentState) -> dict:
@@ -152,7 +159,8 @@ def node_finalize(state: AgentState) -> dict:
     })
     result = {
         "decision": decision,
-        "risk_score": state["score"],
+        "risk_score": min(100, state["score"]),
+        "raw_score": state["score"],
         "apis_called": [s["api"] for s in state["trace"] if s["api"]],
         "camara_mode": "live" if "live" in signal_sources else "mock",
         "signal_sources": signal_sources,
@@ -165,20 +173,16 @@ def node_finalize(state: AgentState) -> dict:
 
 def _build_graph():
     graph = StateGraph(AgentState)
-    graph.add_node("number_verification", node_number_verification)
-    graph.add_node("sim_swap", node_sim_swap)
-    graph.add_node("device_status", node_device_status)
-    graph.add_node("location_verification", node_location_verification)
+    graph.add_node("initial_checks", node_initial_checks)
+    graph.add_node("escalated_checks", node_escalated_checks)
     graph.add_node("finalize", node_finalize)
 
-    graph.set_entry_point("number_verification")
-    graph.add_edge("number_verification", "sim_swap")
-    graph.add_conditional_edges("sim_swap", route_after_sim_swap, {
-        "escalate": "device_status",
+    graph.set_entry_point("initial_checks")
+    graph.add_conditional_edges("initial_checks", route_after_initial, {
+        "escalate": "escalated_checks",
         "fast_path": "finalize",
     })
-    graph.add_edge("device_status", "location_verification")
-    graph.add_edge("location_verification", "finalize")
+    graph.add_edge("escalated_checks", "finalize")
     graph.add_edge("finalize", END)
     return graph.compile()
 
