@@ -1,132 +1,127 @@
 # SafeRemit — AI-Orchestrated Anti-Fraud Layer for Cross-Border Remittances
 
-MENA Ignite Hackathon 2026 — Theme 4: Secure Fintech, Payments & Anti-Fraud Innovation
-Team: FikraX
+**GSMA MENA Ignite Hackathon 2026 · Theme 4: Secure Fintech, Payments & Anti-Fraud Innovation · Team FikraX**
 
-SafeRemit is an AI agent that fuses SIM Swap, Number Verification, Device Status, and Location signals from CAMARA APIs (via Nokia Network-as-Code) into a single real-time fraud decision — stopping remittance account takeover and mule onboarding before the money moves, with zero added friction for legitimate users.
+SafeRemit is an AI agent that sits between a remittance app and its transaction
+pipeline. On every login, onboarding or transfer it pulls the telecom-network
+signals a fraudster can't fake — recent SIM swap, device roaming, whether the
+network has seen this handset before, whether the device is really where it
+claims — and turns them into one real-time decision: **ALLOW**, **STEP-UP**
+verification, or **BLOCK**, with a plain-language reason.
+
+It targets the two fraud patterns that dominate the MENA remittance corridor:
+SIM-swap account takeover, and synthetic-identity mule onboarding. Static OTP and
+document KYC catch neither in real time.
 
 ## Quickstart
 
-**While actively developing the UI** (two terminals, live reload):
-
 ```bash
-# terminal 1 — backend
-cd saferemit
+# one-time
+cd frontend && npm install && npm run build && cd ..
 pip install -r backend/requirements.txt
-uvicorn backend.app:app --reload
 
-# terminal 2 — frontend (React + Framer Motion, hot reload)
-cd saferemit/frontend
-npm install
-npm run dev
+# run the whole prototype
+python -m uvicorn backend.app:app
 ```
 
-Open **http://127.0.0.1:5173** — Vite proxies `/api/*` calls straight through to the backend on :8000 (see `frontend/vite.config.js`), so both sides update live as you edit.
+Open **http://127.0.0.1:8000**.
 
-**For a single-command demo run** (e.g. recording the submission video):
-
-```bash
-cd saferemit/frontend && npm install && npm run build
-cd .. && pip install -r backend/requirements.txt
-uvicorn backend.app:app
-```
-
-Open **http://127.0.0.1:8000** — the backend serves the built React app directly, so this one command is the whole prototype. (`frontend-vanilla/` is the original plain HTML/JS version, kept as a zero-dependency fallback if `frontend/dist` hasn't been built yet.)
+For UI development, run `npm run dev` in `frontend/` (Vite on :5173, proxies
+`/api` to the backend on :8000) alongside `uvicorn backend.app:app --reload`.
 
 ### Configuration
 
-Everything is optional — with nothing set, SafeRemit runs on mock CAMARA data + a deterministic rationale. `cp .env.example .env` and fill in what you have:
+Copy `.env.example` to `.env`. Everything is optional — with nothing set, the app
+runs on mock CAMARA data and a rules-only decision.
 
 | Var | Effect |
 |---|---|
-| `NAC_API_KEY` | Switches the CAMARA clients from mock to **live** Nokia Network-as-Code calls (with automatic mock fallback on error). SIM Swap, Device Status and Location Verification run live; Number Verification needs OAuth and falls back. See `PROTOTYPE_NOTES.md`. |
-| `GEMINI_API_KEY` | Turns on Gemini-generated rationale text (falls back to the deterministic template). |
+| `NAC_API_KEY` | Switches the CAMARA clients to **live** calls against Nokia Network-as-Code (Simulator network). Each call falls back to cached data on failure. |
+| `GEMINI_API_KEY` | Turns on the **AI analyst**: on the escalation path, Gemini reasons about the signal combination and its verdict is reconciled with the rules score. |
 
-`GET /api/health` reports whether you're running `live` or `mock`. Run the tests with `python -m pytest`.
+`GET /api/health` reports the current mode. `python -m pytest` runs the test suite
+(25 tests; live/LLM paths are opt-in via `RUN_LIVE_CAMARA=1`).
 
 ## How it works
 
 ```
-Remittance app event (login / onboarding / transfer)
-        |
-        v
-+-------------------------------------------------------+
-|              SafeRemitAgent (LangGraph)                |
-|                                                         |
-|  1. Number Verification  ──always──┐                   |
-|  2. SIM Swap check       ──always──┤                   |
-|                                     v                   |
-|                          escalate?  (sensitive action,  |
-|                                      or an early signal |
-|                                      already looks bad) |
-|                              /            \             |
-|                           no              yes           |
-|                            |                |           |
-|                     fast-path ALLOW   3. Device Status  |
-|                                        4. Location Ver. |
-|                                              |           |
-|                                     fuse all signals →  |
-|                                   risk score (0–100) →  |
-|                              ALLOW / STEP_UP / BLOCK    |
-|                                              |           |
-|                                  Gemini (or template)   |
-|                                   plain-language         |
-|                                   rationale              |
-+-------------------------------------------------------+
-        |
-        v
-  decision + risk score + full reasoning trace → UI
+  Remittance event (login / onboarding / transfer)
+        │
+        ▼
+  ┌── initial checks ──────────────┐   Number Verification + SIM Swap, in parallel.
+  │                                │   Clean result on a routine login → stop here.
+  └───────────────┬────────────────┘
+        escalate? │  (sensitive action, or an early signal already looks wrong)
+         ┌────────┴────────┐
+        no                yes
+         │                 │
+         │        ┌── escalated checks ──┐   Device Status + Location Verification,
+         │        │                      │   in parallel.
+         │        └──────────┬───────────┘
+         │                   ▼
+         │        ┌── AI analyst (Gemini) ┐   Reasons about the signal *combination*
+         │        │                       │   like a fraud analyst → its own verdict.
+         │        └──────────┬────────────┘
+         └───────────────────┤
+                             ▼
+                    ┌── finalize ──────────┐   Reconcile: rules score + AI verdict.
+                    │                      │   Take the stricter decision; flag any
+                    └──────────────────────┘   disagreement for human review.
+                             │
+                             ▼
+        decision + risk 0–100 + full reasoning trace → UI
 ```
 
-The agent doesn't call all four CAMARA APIs on every request — it escalates the way a human fraud analyst would, which is what makes this "agentic" rather than a fixed checklist (see `backend/agent/orchestrator.py` for the full reasoning).
+The agent doesn't call every CAMARA API on every request — it escalates the way a
+human fraud analyst would. That conditional branch, plus the LLM reasoning step,
+is what makes it *agentic* rather than a fixed checklist. Every path degrades to
+rules-only if Gemini is unset or slow, and to cached data if a CAMARA call fails —
+so a demo never stalls.
 
 ## Project layout
 
 ```
 backend/
-  camara_apis/        mock CAMARA API clients (SIM Swap, Number Verification,
-                       Device Status, Location Verification) — shaped to match
-                       the real Nokia Network-as-Code responses; see each
-                       file's docstring for the live swap-in
+  camara_apis/          live-or-mock CAMARA clients (SIM Swap, Number Verification,
+    _nac.py             Device Status, Location Verification) + the shared HTTP helper
   agent/
-    orchestrator.py    the LangGraph agent — orchestration + escalation logic
-    scoring.py         risk-scoring rules, kept explicit and separate
-    rationale.py        plain-language explanation, optional live Gemini call
-    _nac.py           shared live Network-as-Code HTTP helper + graceful fallback
-  config.py           all env-driven config (NAC_API_KEY, GEMINI_API_KEY, ...)
-  scenarios.py         the 3 demo scenarios (clean / sim-swap block / mismatch step-up)
-  tests/               pytest suite — scoring rules, agent behaviour, API surface
-  app.py               FastAPI app — /api/decide, /api/scenarios, /api/health, serves the frontend
-frontend/                React + Vite + Framer Motion demo UI (scenario picker,
-                          animated reasoning trace, live decision badge)
-  src/components/        ScenarioTabs, AppMock, ReasoningPanel, DecisionBadge, TraceList
-  src/api.js              talks to the backend; PREVIEW_REQUESTS mirrors scenarios.py
-frontend-vanilla/        original plain HTML/JS/CSS version — zero build step,
-                          kept as a fallback (see backend/app.py)
-demo/
-  DEMO_SCRIPT.md        script for the 3-minute submission video
+    orchestrator.py     the LangGraph agent — parallel checks, conditional escalation
+    scoring.py          the transparent 0-100 risk-scoring rules
+    assessment.py       the Gemini analyst — reasons about the signal combination
+    rationale.py        assembles the plain-language rationale (3-way: rules / agree / split)
+  config.py             all env-driven config
+  scenarios.py          the 3 scripted demo scenarios
+  tests/                pytest — scoring, agent behaviour, reconciliation, API surface
+  app.py                FastAPI — /api/decide, /api/scenarios, /api/health, serves the UI
+frontend/               React + Vite + Framer Motion
+  src/components/        ScenarioTabs · AppMock · ReasoningPanel · DecisionBadge · TraceList
+demo/DEMO_SCRIPT.md     3-minute submission-video script
 docs/
-  pitch-deck.html      single-file pitch (problem, agent, live status, business)
-PROTOTYPE_NOTES.md      what's live vs. mocked, how to go live, compliance checklist
+  pitch-deck.html       single-file pitch
+  HOW_IT_WORKS.md       plain-English walkthrough
+PROTOTYPE_NOTES.md      live vs. mock status, portal setup, rules-compliance checklist
 ```
 
-## Tech stack (and why, per the AI Resource & Tooling Guide)
+## Tech stack (per the AI Resource & Tooling Guide)
 
-This is the Guide's recommended **"Intermediate stack (Python)"** — LangGraph agent + Gemini + CAMARA APIs as agent tools.
+This is the Guide's recommended **"Intermediate stack (Python)"** — a LangGraph
+agent, Gemini, and CAMARA APIs as the agent's data tools.
 
-- **LangGraph** — §2, "Code-first agent frameworks." Chosen because the agent's actual behavior (conditional escalation — call the cheap checks first, only pull device/location data when the action is sensitive or an early signal looks wrong) is naturally a small directed graph, not a linear pipeline. This is what makes it *agentic* per the Guide: "each CAMARA API [is] a tool the agent decides when to call, not a button the user presses."
-- **CAMARA APIs on Nokia Network-as-Code** — SIM Swap, Device Status (roaming + connectivity) and Location Verification run as **live calls** against the NaC apihub gateway in Simulator mode; Number Verification is wired but needs the OAuth leg. Every call degrades to cached mock data on failure.
-- **Google AI Studio / Gemini** (`gemini-2.5-flash`) — §3, "Hosted APIs with a free tier." Rewrites the deterministic rationale into a tighter analyst-facing sentence. Optional — the deterministic template is the demo-day safety net.
-- **FastAPI + React/Vite** — kept simple so any judge can clone and run it in under a minute with one command. Live CAMARA calls degrade gracefully to cached mock data (Guide's tip: "a recorded fallback keeps the demo running").
-
-## Pitch
-
-`docs/pitch-deck.html` — a single-file, self-contained pitch (problem, the agent, live CAMARA status, business model). Open it in a browser, or publish it as a shareable page.
+- **LangGraph** (§2, code-first agent frameworks) — the agent is a directed graph
+  with a conditional escalation edge and an LLM reasoning node, not a linear
+  pipeline.
+- **Google AI Studio / Gemini** `gemini-3.6-flash` (§3, hosted APIs with a free
+  tier) — the analyst step. Reconciled with, not replacing, the deterministic
+  score.
+- **CAMARA APIs on Nokia Network-as-Code** — SIM Swap, Device Status and Location
+  Verification run as live calls in Simulator mode; Number Verification is wired
+  (it's CAMARA 3-legged OAuth — device-side consent — so it degrades to mock).
+- **FastAPI + React/Vite** — one command to run the whole thing.
 
 ## Submission checklist
 
-- [x] Idea Capture Template — submitted, shortlisted
-- [ ] Prototype working end-to-end with live Nokia NaC calls (currently mocked, see `PROTOTYPE_NOTES.md`)
-- [ ] Pitch Deck update (architecture + business model sections)
-- [ ] 3-minute demo video (script ready in `demo/DEMO_SCRIPT.md`)
-- [ ] GitHub repo link in final submission
+- [x] Idea Capture Template — shortlisted
+- [x] Working prototype: live CAMARA calls, LLM analyst, 25 automated tests
+- [x] Pitch deck — `docs/pitch-deck.html`
+- [ ] 3-minute demo video — script in `demo/DEMO_SCRIPT.md`
+- [ ] GitHub repo link in the final submission

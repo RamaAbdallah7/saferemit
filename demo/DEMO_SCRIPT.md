@@ -24,13 +24,13 @@ Click **Clean login** → **Run SafeRemit decision**.
 
 Point at the `LIVE` badge on SIM Swap, the fast-path note, the **ALLOW · risk score 0** badge.
 
-### 0:52–1:40 — Scenario 2: SIM-swap takeover  ·  BLOCK
+### 0:52–1:45 — Scenario 2: SIM-swap takeover  ·  BLOCK
 
 Click **SIM-swap takeover attempt** → **Run**.
 
-> "Same account. The SIM was swapped minutes ago from an unrecognized device. SIM Swap comes back positive — a real call to Nokia's network — so the agent escalates, pulls Device Status and Location Verification in parallel, and fuses all four signals: risk 100, block, with a plain-language reason a fraud analyst can act on."
+> "Same account. The SIM was swapped minutes ago from an unrecognized device. SIM Swap comes back positive — a real call to Nokia's network — so the agent escalates and pulls Device Status and Location Verification in parallel. Then it hands the whole picture to a Gemini analyst, which recognises the SIM-swap takeover pattern and returns its own verdict. The rules score and the AI agree — block, risk 100 — with a written reason."
 
-Point at each `LIVE` badge as the trace fills, then the red **BLOCK** verdict and the rationale.
+Point at each `LIVE` badge, then the **AI analyst (Gemini)** step, then the rules-vs-AI panel ("Both agree — confidence is high"), then the red **BLOCK** verdict.
 
 ### 1:40–2:20 — Scenario 3: Mismatched onboarding  ·  STEP-UP
 
@@ -48,7 +48,7 @@ Click **Custom request** → the **Network error → fallback** preset → **Run
 
 ### 2:45–3:00 — Close (screen: pitch deck architecture diagram, or the UI)
 
-> "A LangGraph agent orchestrating CAMARA APIs on Nokia Network-as-Code, Gemini writing the rationale — the tooling guide's own recommended stack. Licensed per decision to remittance apps, operators and banks. SafeRemit — stopping remittance fraud before the money moves. Thank you."
+> "A LangGraph agent orchestrating CAMARA APIs on Nokia Network-as-Code, with a Gemini analyst reasoning about the signal combination — the tooling guide's own recommended stack. Licensed per decision to remittance apps, operators and banks. SafeRemit — stopping remittance fraud before the money moves. Thank you."
 
 ---
 

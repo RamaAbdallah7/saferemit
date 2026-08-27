@@ -1,11 +1,21 @@
 # Prototype notes — read this before the Live Demo round
 
-## What's real vs. mocked right now
+## What's real vs. simulated
 
-- **Real:** the FastAPI backend, the LangGraph orchestration agent, the risk-scoring logic, the escalation/branching decision, the rationale generator (with optional live Gemini call), the full frontend UI, and the `pytest` suite (`python -m pytest`).
-- **Live-or-mock:** the four CAMARA API clients (`backend/camara_apis/*.py`). Each one calls the real Nokia Network-as-Code endpoint **when `NAC_API_KEY` is set**, and otherwise returns realistic scenario-keyed canned data. If a live call errors or times out it falls back to the mock automatically and marks the signal `source: "mock-fallback"`.
+- **Real:** the LangGraph agent, the escalation logic, the 0-100 rules score, the
+  **Gemini analyst** and the rules-vs-AI reconciliation, the FastAPI backend, the
+  React UI, and the 25-test `pytest` suite.
+- **Live-or-mock:** the CAMARA clients (`backend/camara_apis/*.py`). Each calls
+  the real Nokia Network-as-Code endpoint **when `NAC_API_KEY` is set**, else
+  returns scenario-keyed canned data. A live call that errors/times out falls
+  back to the mock and marks the signal `source: "mock-fallback"`.
+- **Simulated network:** live calls hit Nokia's **Simulator** — fixed test
+  MSISDNs, not real phones.
 
-This graceful degradation is exactly what the Resource & Tooling Guide tells you to build: *"Have a clear fallback when an API or model is rate-limited"* and *"Cache demo data. Live API calls fail at the worst moment."* `GET /api/health` reports whether you're currently `live` or `mock`, and every decision result carries `camara_mode` + `signal_sources`.
+Graceful degradation on both the CAMARA calls and the LLM step is exactly what
+the Resource & Tooling Guide tells you to build. `GET /api/health` reports the
+current mode; every decision carries `camara_mode`, `signal_sources`, and an
+`assessment` block (rules verdict, AI verdict, agreement).
 
 ## Live Nokia Network-as-Code status (2026-08-28)
 
@@ -70,30 +80,34 @@ The frontend was rebuilt on React + Vite specifically so this part is easy to it
 - `frontend/src/components/ScenarioTabs.jsx` — the sliding active-tab pill, done with a shared `layoutId` (Framer Motion animates the transform between tabs automatically).
 - `frontend/src/styles.css` — colors/spacing/layout; unrelated to Framer Motion but often edited alongside it.
 
-## To turn on the live Gemini rationale
+## The AI analyst (Gemini)
 
-1. Get a free key at https://aistudio.google.com/ (Google AI Studio — listed in the Resource & Tooling Guide, section 3).
-2. `export GEMINI_API_KEY=your-key-here` before starting the backend.
-3. That's it — `backend/agent/rationale.py` picks it up automatically and falls back to the deterministic template if the call fails or times out, so this is safe to leave on during a live demo.
+- Free key from https://aistudio.google.com/ → `.env` as `GEMINI_API_KEY`.
+- `backend/agent/assessment.py` calls `gemini-3.6-flash` on the **escalation
+  path only** (a clean login has no combination to reason about). It asks for a
+  JSON verdict: `{decision, risk_score, reasoning}`.
+- `finalize()` reconciles the LLM verdict with the rules score — **stricter of
+  the two wins**, disagreements are flagged. Result carries `assessment.rules`,
+  `assessment.ai`, `assessment.agreement`.
+- `thinkingConfig.thinkingBudget` is kept low so the call is ~2-3s. On failure
+  or no key, the decision is rules-only — safe to leave on for a live demo.
 
 ## Compliance checklist against the hackathon rules
 
-- [x] Uses **≥1 CAMARA API on Nokia Network-as-Code** — four: SIM Swap, Number Verification, Device Status, Location Verification. Live-or-mock; live path is one env var away.
-- [x] **AI agent layer** orchestrates those APIs as trusted real-time signals, not user-triggered buttons — `backend/agent/orchestrator.py`, the conditional escalation edge is the agentic part. Matches the Guide's tip: *"Treat each CAMARA API as a tool the agent decides when to call."*
-- [x] **Agent built only with Resource & Tooling Guide tools** — verified against the guide PDF: **LangGraph** (§2, "Code-first agent frameworks") + **Google AI Studio / Gemini** (§3, "Hosted APIs with a free tier"). No external tooling in the agent layer.
-- [x] Architecture matches the Guide's recommended **"Intermediate stack (Python)"**: LangGraph agent + Gemini + CAMARA APIs as agent tools.
-- [x] Follows the Guide's demo tips: graceful degradation, cached demo data, reasoning trace shown on screen.
-- [x] **Original code**, written for this hackathon (repo history starts 2026-08-27, inside the Jul 1 – Sep 13 window).
-- [x] Aligned to **Theme 4** — Secure Fintech, Payments & Anti-Fraud Innovation.
-- [x] Team size 2 (≤ 5).
-- [ ] **Still to do:** get the Nokia NaC key + test the 4 live calls against simulator numbers; update the pitch deck (architecture + business model); record the 3-minute demo video; put the GitHub link in the final submission.
-- [ ] **Check yourselves:** both team members are 18+ and resident in an Arab League country or Türkiye.
-
-## Suggested day-by-day for the ~17 days you have
-
-1. **Day 1–2:** Register on Nokia NaC, get Gemini key, get this prototype running locally, read the NaC API docs for the 4 endpoints you need.
-2. **Day 3–6:** Swap the 4 mock clients for real sandbox calls, one at a time, testing each against the existing 3 scenarios so you know immediately if a real response breaks the scoring logic.
-3. **Day 7–9:** Polish the frontend — this is what's on screen for your 3-minute video, so it's worth the extra time.
-4. **Day 10–11:** Record the demo video (3 scripted scenarios — see `demo/DEMO_SCRIPT.md`), write the final pitch deck sections (business model, architecture diagram).
-5. **Day 12–13:** Buffer for the inevitable — sandbox rate limits, a teammate's laptop issue, etc.
-6. **By Sep 13:** Final submission — Idea Capture Template (if it needs updating), Pitch Deck, GitHub repo link, demo video.
+- [x] **≥1 CAMARA API on Nokia Network-as-Code** — four wired; SIM Swap, Device
+  Status, Location Verification run live.
+- [x] **AI agent layer orchestrates the APIs as data sources, not buttons** —
+  `orchestrator.py`: parallel checks, a conditional escalation edge, and an LLM
+  reasoning node whose verdict drives the decision.
+- [x] **Agent built only with approved tools** (guide PDF): **LangGraph** (§2) +
+  **Google AI Studio / Gemini** (§3). Nothing else in the agent layer.
+- [x] Matches the guide's **"Intermediate stack (Python)"**.
+- [x] Follows the guide's demo tips: graceful degradation (CAMARA *and* LLM),
+  cached data, reasoning trace on screen.
+- [x] **Original code**, built in the Jul 1 – Sep 13 window.
+- [x] **Theme 4** — Secure Fintech, Payments & Anti-Fraud.
+- [x] Team size 2.
+- [ ] **Still to do:** record the 3-minute demo video (`demo/DEMO_SCRIPT.md`);
+  put the GitHub link in the final submission; (optional) deploy for a live link.
+- [ ] **Check yourselves:** both members are 18+ and resident in an Arab League
+  country or Türkiye.

@@ -72,20 +72,17 @@ def api_decide(body: DecideRequest):
     return result
 
 
-# Serve the built React frontend as static files at the root, so
-# `uvicorn backend.app:app` alone can run the whole demo (after `npm run
-# build` in frontend/ — see frontend/README or PROTOTYPE_NOTES.md).
+# Serve the built React frontend at the root, so `uvicorn backend.app:app`
+# alone runs the whole demo (after `npm run build` in frontend/).
 #
-# While actively developing the UI, run `npm run dev` in frontend/ instead
-# (Vite dev server on :5173, proxying /api to this backend on :8000) — much
-# faster iteration than rebuilding on every change.
-_project_root = Path(__file__).resolve().parent.parent
-_react_dist = _project_root / "frontend" / "dist"
-_vanilla_frontend = _project_root / "frontend-vanilla"
+# While iterating on the UI, run `npm run dev` in frontend/ instead — the
+# Vite dev server on :5173 proxies /api to this backend on :8000, so
+# App.jsx's fetch("/api/...") works the same in dev and in the build.
+_react_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 if _react_dist.exists():
     app.mount("/", StaticFiles(directory=str(_react_dist), html=True), name="frontend")
-elif _vanilla_frontend.exists():
-    # Fallback so `uvicorn backend.app:app` still serves *something* before
-    # you've run `npm install && npm run build` in frontend/.
-    app.mount("/", StaticFiles(directory=str(_vanilla_frontend), html=True), name="frontend-vanilla")
+else:
+    @app.get("/", include_in_schema=False)
+    def _needs_build():
+        return {"detail": "Frontend not built. Run `npm run build` in frontend/, then reload."}

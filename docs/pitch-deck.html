@@ -426,7 +426,7 @@
 
         <rect class="ddec" x="726" y="38" width="154" height="52" rx="8"/>
         <text class="dnode-t" x="803" y="58" text-anchor="middle" style="fill:var(--signal);font-weight:600">DECISION</text>
-        <text class="dlabel" x="803" y="76" text-anchor="middle" style="fill:var(--signal)">0&ndash;100 &middot; rationale</text>
+        <text class="dlabel" x="803" y="76" text-anchor="middle" style="fill:var(--signal)">rules + AI, reconciled</text>
       </svg>
     </div>
   </section>
@@ -458,7 +458,7 @@
     <div class="section-head">
       <p class="eyebrow">How it works</p>
       <h2>An agent that decides which signal is worth pulling.</h2>
-      <p>SafeRemit sits between a remittance app and its transaction pipeline. On every sensitive event it runs a small decision graph &mdash; not a fixed checklist &mdash; built on <strong>LangGraph</strong>, with <strong>Gemini</strong> writing the analyst-facing rationale. Both are on the hackathon's approved tooling guide; the whole stack is the guide's recommended intermediate architecture.</p>
+      <p>SafeRemit sits between a remittance app and its transaction pipeline. On every sensitive event it runs a small decision graph &mdash; not a fixed checklist &mdash; built on <strong>LangGraph</strong>, with <strong>Gemini</strong> as the analyst that reasons about the signal combination. Both are on the hackathon's approved tooling guide; the whole stack is the guide's recommended intermediate architecture.</p>
     </div>
 
     <ol class="steps">
@@ -471,8 +471,8 @@
         <p>If the action is sensitive (onboarding, transfer) or an early signal already looks wrong, the agent pulls Device Status and Location Verification &mdash; also in parallel. This conditional branch is what makes it agentic rather than a linear pipeline.</p>
       </li>
       <li>
-        <h3>Fuse into one verdict</h3>
-        <p>Every signal actually pulled is scored into a 0&ndash;100 risk number mapped to ALLOW / STEP-UP / BLOCK, with a plain-language reason a fraud analyst can act on immediately &mdash; not just a score.</p>
+        <h3>Two opinions, reconciled</h3>
+        <p>A transparent rules score fuses the signals into a 0&ndash;100 number. In parallel, Gemini reads the same signals and reasons about the <em>combination</em> &mdash; a lone SIM swap is noise, a SIM swap plus a new roaming device plus a transfer is a textbook takeover. The agent takes the stricter of the two verdicts and flags any disagreement for a human.</p>
       </li>
     </ol>
 
@@ -483,6 +483,7 @@
       <div class="trace-row"><span class="step">Escalation decision</span><span class="pts">&mdash;</span><span class="why">Early signal already suspicious &rarr; pull device + location.</span></div>
       <div class="trace-row"><span class="step">Device Status <span class="src">live</span></span><span class="pts">+30 &middot; score 75</span><span class="why">Device fingerprint never seen on this account; handset is roaming.</span></div>
       <div class="trace-row"><span class="step">Location Verification <span class="src">live</span></span><span class="pts">+30 &middot; score 100</span><span class="why">Claimed location does not match the network's fix on the device.</span></div>
+      <div class="trace-row"><span class="step">AI analyst <span class="src">Gemini</span></span><span class="pts">risk 92</span><span class="why">"High-risk SIM-swap ATO pattern: recent swap + unrecognized roaming device + 0% location match." Agrees with the rules score &mdash; confidence high.</span></div>
       <div class="trace-verdict"><span>BLOCK</span><span class="mono">risk 100 / 100</span></div>
     </div>
   </section>
@@ -510,9 +511,9 @@
 
     <div class="metrics">
       <div class="metric"><div class="n">3 / 4</div><div class="k">CAMARA APIs live</div></div>
-      <div class="metric"><div class="n">~3s</div><div class="k">per 4-signal decision</div></div>
-      <div class="metric"><div class="n">2</div><div class="k">calls saved on a clean login</div></div>
-      <div class="metric"><div class="n">22</div><div class="k">automated tests, green</div></div>
+      <div class="metric"><div class="n">~4s</div><div class="k">decision, incl. AI analyst</div></div>
+      <div class="metric"><div class="n">2</div><div class="k">opinions reconciled per call</div></div>
+      <div class="metric"><div class="n">25</div><div class="k">automated tests, green</div></div>
     </div>
 
     <p style="margin-top:40px">Number Verification is CAMARA's 3-legged flow &mdash; the subscriber's device authorises on-network before the check. That belongs in the mobile app, not a server; it's wired and shown in the trace, and runs live in production where the redirect exists.</p>
