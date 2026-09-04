@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import DecisionBadge from "./DecisionBadge";
+import RiskGauge from "./RiskGauge";
 import TraceList from "./TraceList";
 
 // Rationale reveal is delayed to land just after the last staggered trace
 // item finishes (see TraceList's staggerChildren/delayChildren timing).
-const RATIONALE_DELAY_S = 0.1 + 5 * 0.14 + 0.25;
+const RATIONALE_DELAY_S = 0.1 + 6 * 0.14 + 0.3;
 
 const LABEL = { ALLOW: "ALLOW", STEP_UP: "STEP-UP", BLOCK: "BLOCK" };
 
@@ -30,7 +30,7 @@ function Assessment({ assessment }) {
           </div>
           <p className={`a-note ${agreement ? "agree" : "disagree"}`}>
             {agreement
-              ? "Both agree — confidence is high."
+              ? "Both engines agree — confidence is high."
               : "Split call — the agent took the stricter decision and flagged it for review."}
           </p>
         </>
@@ -41,11 +41,17 @@ function Assessment({ assessment }) {
   );
 }
 
-export default function ReasoningPanel({ result, runKey }) {
+export default function ReasoningPanel({ result, runKey, running }) {
   return (
     <section className="panel reasoning">
-      <h2>Agent Reasoning</h2>
-      <DecisionBadge result={result} />
+      <div className="panel-kicker">Assessment</div>
+
+      <RiskGauge
+        score={result?.risk_score ?? null}
+        decision={result?.decision ?? null}
+        running={running}
+      />
+
       <TraceList trace={result?.trace} runKey={runKey} />
 
       <AnimatePresence>
