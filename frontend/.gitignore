@@ -8,9 +8,11 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
 dist-ssr
 *.local
+
+# dist/ is committed on purpose — Render's Python runtime has no Node to
+# build it, so the built bundle ships in the repo (see repo-root .gitignore).
 
 # Editor directories and files
 .vscode/*

@@ -1,0 +1,2 @@
+# Ship the built frontend bytes exactly as Vite produced them — no EOL rewriting.
+frontend/dist/** -text

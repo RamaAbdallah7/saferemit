@@ -6,6 +6,9 @@ venv/
 *.log
 .DS_Store
 node_modules/
-dist/
 dist-old/
 .vite/
+
+# frontend/dist is committed on purpose: Render's Python runtime has no
+# Node, so the built React bundle ships in the repo and FastAPI serves it.
+backend/**/dist/

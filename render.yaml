@@ -1,0 +1,27 @@
+# Render deploy config for SafeRemit.
+#
+# One web service: FastAPI (backend/app.py) serves the JSON API under /api
+# and the pre-built React bundle (frontend/dist) at /. The frontend is
+# committed to the repo because Render's Python runtime has no Node to
+# build it — see .gitignore.
+#
+# Secrets (NAC_API_KEY, GEMINI_API_KEY) are marked sync:false, so Render
+# asks for them in the dashboard and never stores them in this file.
+# Without them the app still runs on mock CAMARA data + rules-only scoring.
+
+services:
+  - type: web
+    name: saferemit
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python -m uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: NAC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
