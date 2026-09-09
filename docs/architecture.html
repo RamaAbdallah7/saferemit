@@ -188,6 +188,18 @@ flowchart TD
 </section>
 
 <script>
+  // ?only=journey|architecture|agent|detail — isolate one board, no card chrome, for image export
+  (function(){
+    var only = new URLSearchParams(location.search).get("only");
+    if(!only) return;
+    document.body.style.background = "#ffffff";
+    document.querySelectorAll(".board").forEach(function(b){
+      if(b.id !== only){ b.remove(); return; }
+      b.style.border = "0"; b.style.margin = "0"; b.style.padding = "24px";
+      b.style.maxWidth = "none"; b.style.borderRadius = "0";
+      b.querySelectorAll(".eyebrow, h1, .sub").forEach(function(e){ e.remove(); });
+    });
+  })();
   mermaid.initialize({
     startOnLoad: true,
     theme: "base",
@@ -209,7 +221,7 @@ flowchart TD
       noteBorderColor: "#b06a12",
       noteTextColor: "#15201b"
     },
-    flowchart: { curve: "basis", nodeSpacing: 40, rankSpacing: 55, htmlLabels: true },
+    flowchart: { curve: "basis", nodeSpacing: 44, rankSpacing: 58, htmlLabels: false, padding: 14 },
     sequence: { actorMargin: 46, boxMargin: 10, mirrorActors: false, noteMargin: 12, messageMargin: 34 }
   });
 </script>
