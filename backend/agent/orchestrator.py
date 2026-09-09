@@ -140,7 +140,9 @@ def node_escalated_checks(state: AgentState) -> dict:
     score += ds_points
     trace.append(_entry("device_status", "device_status", ds, ds_points, ds_reason, score))
 
-    lv_points, lv_reason = score_location_verification(lv)
+    # Location is scored with the device's roaming state in hand: a mismatch
+    # on a roaming device is usually travel, not spoofing (see scoring.py).
+    lv_points, lv_reason = score_location_verification(lv, roaming=ds["roaming"])
     score += lv_points
     trace.append(_entry("location_verification", "location_verification", lv, lv_points, lv_reason, score))
 

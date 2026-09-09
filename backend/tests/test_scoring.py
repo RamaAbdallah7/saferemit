@@ -51,3 +51,18 @@ def test_decision_thresholds():
     assert decision_for_score(69) == "STEP_UP"
     assert decision_for_score(70) == "BLOCK"
     assert decision_for_score(100) == "BLOCK"
+
+
+def test_location_mismatch_is_never_a_standalone_block():
+    # A full mismatch on its own tops out at STEP_UP, never BLOCK.
+    from backend.agent.scoring import score_location_verification, decision_for_score
+    pts, _ = score_location_verification({"verification_result": "FALSE", "match_rate": 5})
+    assert decision_for_score(pts) == "STEP_UP"
+
+
+def test_roaming_halves_the_location_penalty():
+    from backend.agent.scoring import score_location_verification
+    home, _ = score_location_verification({"verification_result": "FALSE", "match_rate": 5}, roaming=False)
+    travelling, reason = score_location_verification({"verification_result": "FALSE", "match_rate": 5}, roaming=True)
+    assert travelling < home
+    assert "travel" in reason.lower()

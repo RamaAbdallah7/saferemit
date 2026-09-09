@@ -39,13 +39,27 @@ def score_device_status(ds_result: dict) -> tuple[int, str]:
     return points, reason
 
 
-def score_location_verification(lv_result: dict) -> tuple[int, str]:
+def score_location_verification(lv_result: dict, *, roaming: bool = False) -> tuple[int, str]:
+    """Location is deliberately never a standalone reason to block.
+
+    A full mismatch tops out at +30, which on its own is STEP_UP, not
+    BLOCK (BLOCK needs 70). And when the device is roaming, a mismatch is
+    usually just the customer travelling — not location spoofing — so the
+    weight is halved. Location only pushes toward a block when it stacks
+    with an independently serious signal like a recent SIM swap.
+    """
     result = lv_result["verification_result"]
+    mr = lv_result.get("match_rate")
     if result == "FALSE":
-        return 30, f"Claimed location does not match network location (match rate {lv_result['match_rate']}%)."
+        if roaming:
+            return 15, (f"Claimed location doesn't match the network (match rate {mr}%), "
+                        "but the device is roaming — consistent with the customer travelling, "
+                        "not location spoofing. Weight halved.")
+        return 30, (f"Claimed location does not match network location (match rate {mr}%), "
+                    "and the device is on its home network — possible location spoofing.")
     if result == "PARTIAL":
-        return 15, f"Claimed location only partially matches network location (match rate {lv_result['match_rate']}%)."
-    return 0, f"Claimed location matches network location (match rate {lv_result['match_rate']}%)."
+        return 15, f"Claimed location only partially matches network location (match rate {mr}%)."
+    return 0, f"Claimed location matches network location (match rate {mr}%)."
 
 
 def decision_for_score(score: int) -> str:

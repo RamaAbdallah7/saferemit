@@ -35,6 +35,10 @@ Two fraud patterns dominate this corridor:
 Weigh the SIGNALS AS A COMBINATION, not individually. A single weak signal is usually noise;
 several weak signals that fit one of the patterns above is high confidence.
 
+A location mismatch on a ROAMING device usually just means the customer is travelling — treat it
+as low risk unless it is paired with a recent SIM swap or an unrecognized device. Never recommend
+BLOCK on a location mismatch alone.
+
 Respond with ONLY a JSON object, no prose:
 {"decision": "ALLOW" | "STEP_UP" | "BLOCK",
  "risk_score": <integer 0-100>,
