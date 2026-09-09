@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SafeRemit — Architecture & Technical Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+  :root{
+    --ink:#15201b; --ink-2:#4b5a52; --ink-3:#8a988f;
+    --paper:#ffffff; --wash:#f4f7f5; --line:#dbe3de;
+    --green:#0b6b4f; --green-soft:#e4f1eb;
+    --amber:#b06a12; --amber-soft:#f7ecdb;
+    --red:#c23b34; --red-soft:#fbe8e6;
+    --sans:"IBM Plex Sans", system-ui, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--wash); color:var(--ink); font-family:var(--sans); line-height:1.5; }
+  .board{
+    background:var(--paper); max-width:1180px; margin:26px auto; padding:44px 52px 52px;
+    border:1px solid var(--line); border-radius:16px;
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--green); margin:0 0 10px; font-weight:600;
+  }
+  h1{ font-size:27px; font-weight:700; letter-spacing:-.02em; margin:0 0 6px; }
+  .sub{ color:var(--ink-2); font-size:14.5px; max-width:70ch; margin:0 0 30px; }
+  .mermaid{ display:flex; justify-content:center; }
+  .mermaid svg{ max-width:100%; height:auto; }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:6px; }
+  @media(max-width:840px){ .grid2{ grid-template-columns:1fr; } }
+  .card{ border:1px solid var(--line); border-radius:12px; padding:20px 22px; background:var(--paper); }
+  .card h3{ margin:0 0 12px; font-size:14px; font-family:var(--mono); letter-spacing:.04em;
+            text-transform:uppercase; color:var(--green); }
+  .card ul{ margin:0; padding-left:18px; }
+  .card li{ font-size:14px; color:var(--ink-2); margin:7px 0; }
+  .card li b{ color:var(--ink); }
+
+  table.score{ width:100%; border-collapse:collapse; margin-top:8px; font-size:14px; }
+  table.score td{ padding:9px 4px; border-top:1px solid var(--line); color:var(--ink-2); }
+  table.score td:last-child{ text-align:right; font-family:var(--mono); color:var(--ink); font-weight:600; }
+  table.score tr:first-child td{ border-top:0; }
+  .pill{ display:inline-block; font-family:var(--mono); font-size:12px; font-weight:600;
+         padding:3px 10px; border-radius:999px; }
+  .pill.allow{ color:var(--green); background:var(--green-soft); }
+  .pill.step{ color:var(--amber); background:var(--amber-soft); }
+  .pill.block{ color:var(--red); background:var(--red-soft); }
+  .thresholds{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  .thresholds span{ font-size:13px; color:var(--ink-2); }
+  .callout{
+    margin-top:20px; border-left:3px solid var(--green); background:var(--green-soft);
+    padding:14px 18px; font-size:13.5px; color:var(--ink); border-radius:0 8px 8px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 1 · THE JOURNEY ============ -->
+<section class="board" id="journey">
+  <p class="eyebrow">SafeRemit · end-to-end</p>
+  <h1>How a phone number becomes a decision</h1>
+  <p class="sub">One request in, one verdict out. The agent decides which network signals to pull and in what order — a clean login stops after two cheap checks; a risky one escalates.</p>
+  <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as Customer
+    participant E as Enterprise app
+    participant S as SafeRemit API
+    participant A as LangGraph agent
+    participant N as Nokia NaC · CAMARA
+    participant G as Gemini · Google AI Studio
+    participant R as Rules engine
+
+    U->>E: Confirm transfer + phone number
+    E->>S: POST /api/decide
+    S->>A: run decision graph
+    A->>N: SIM Swap + Number Verification (parallel)
+    N-->>A: signals
+    Note over A: early signal risky OR sensitive action?
+    A->>N: Device Status + Location (parallel)
+    N-->>A: signals
+    A->>G: reason over the signal combination
+    G-->>A: {decision, risk_score, reasoning}
+    A->>R: score signals on the fixed 0–100 table
+    R-->>A: rules verdict
+    Note over A: reconcile — stricter verdict wins,<br/>disagreement flagged for a human
+    A-->>S: ALLOW / STEP-UP / BLOCK + reasoning trace
+    S-->>E: decision
+    E-->>U: proceeds · asks to verify · stops
+  </pre>
+</section>
+
+<!-- ============ 2 · ARCHITECTURE ============ -->
+<section class="board" id="architecture">
+  <p class="eyebrow">SafeRemit · system architecture</p>
+  <h1>Actors and components</h1>
+  <p class="sub">SafeRemit is a single decisioning service the enterprise calls. It orchestrates the CAMARA APIs and an LLM as data sources; a deterministic rules engine owns the score, and reconcile owns the final call.</p>
+  <pre class="mermaid">
+flowchart LR
+    U(["Customer"]) --> E["Enterprise app<br/>bank · mobile-money · remittance"]
+    E -->|"POST /api/decide"| API["SafeRemit API<br/>FastAPI"]
+    API --> AG["LangGraph agent<br/>orchestration"]
+    AG --> RE["Rules engine<br/>deterministic 0–100 score"]
+    RE --> RC["Reconcile<br/>stricter verdict wins<br/>· disagreement → human"]
+    AG --> RC
+    RC --> OUT(["ALLOW / STEP-UP / BLOCK<br/>+ reasoning trace<br/>→ returned to the app"])
+    AG -.->|"real-time signals"| NAC["Nokia Network-as-Code<br/>CAMARA: SIM Swap · Device<br/>Location · Number"]
+    AG -.->|"escalation only"| GEM["Google AI Studio · Gemini<br/>general model · JSON verdict"]
+    GEM -.-> RC
+
+    classDef ext fill:#f4f7f5,stroke:#8a988f,color:#4b5a52;
+    class NAC,GEM ext;
+  </pre>
+</section>
+
+<!-- ============ 3 · AGENT DECISION GRAPH ============ -->
+<section class="board" id="agent">
+  <p class="eyebrow">SafeRemit · the agent</p>
+  <h1>The decision graph — not a fixed checklist</h1>
+  <p class="sub">Built with LangGraph. Cheap checks run first and in parallel; the LLM step runs only on the escalation path. Every branch ends at reconcile.</p>
+  <pre class="mermaid">
+flowchart TD
+    S(["Request<br/>login · onboarding · transfer"]) --> IC
+    IC["Initial checks · parallel<br/>SIM Swap + Number Verification"] --> Q{"early signal risky<br/>OR sensitive action?"}
+    Q -- "no — fast path" --> FIN
+    Q -- "yes — escalate" --> EC["Escalated checks · parallel<br/>Device Status + Location Verification"]
+    EC --> AI["Gemini analyst<br/>reasons over the combination"]
+    AI --> FIN
+    FIN["Finalize · reconcile<br/>rules score  vs  Gemini verdict"] --> D{"final risk"}
+    D -- "0–29" --> A(["ALLOW"])
+    D -- "30–69" --> ST(["STEP-UP"])
+    D -- "70+" --> B(["BLOCK"])
+  </pre>
+</section>
+
+<!-- ============ 4 · LLM + SCORING + SCALE ============ -->
+<section class="board" id="detail">
+  <p class="eyebrow">SafeRemit · the LLM, the score, and scale</p>
+  <h1>How the AI is controlled — and how this scales</h1>
+  <p class="sub">The AI is a second opinion, not the decision-maker. The rules engine is transparent and auditable; the AI can only make a call stricter.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>The LLM — controlled, not trusted blindly</h3>
+      <ul>
+        <li><b>Model:</b> Google Gemini (gemini-3.6-flash) via Google AI Studio — a <b>general model, not fine-tuned</b>.</li>
+        <li><b>Output control:</b> constrained to a fixed JSON schema <span class="mono">{decision, risk_score, reasoning}</span>; temperature 0.2; small thinking budget; the response is validated before it is used.</li>
+        <li><b>Authority:</b> advisory. It can <b>raise</b> the severity of a decision, never lower it. The deterministic rules score is the floor.</li>
+        <li><b>Failure:</b> if Gemini errors or is unconfigured, the agent proceeds on the rules score alone. A rules-vs-AI disagreement is <b>flagged for a human</b>.</li>
+        <li><b>Runs when:</b> escalation path only — a clean login never calls it.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Scale & extensibility</h3>
+      <ul>
+        <li><b>Stateless per-decision API</b> — scales horizontally, no session state.</li>
+        <li><b>Latency:</b> ~sub-second on the clean fast path; ~2–3 s on the full escalated path (network calls + LLM run in parallel).</li>
+        <li><b>New signals</b> plug into the same points table without touching orchestration logic.</li>
+        <li><b>New corridors / operators:</b> one GSMA Open Gateway integration, no per-bank rebuild.</li>
+        <li><b>Same pattern generalises:</b> fuse weak network signals into one high-confidence verdict → telecom fraud, insurance-claim validation, e-commerce account takeover.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:26px;">
+    <h3>The rules engine — deterministic points table (0–100)</h3>
+    <table class="score">
+      <tr><td>SIM swapped within 72 h</td><td>+45</td></tr>
+      <tr><td>Number not verified on the device</td><td>+35</td></tr>
+      <tr><td>Claimed location doesn't match the network</td><td>+30</td></tr>
+      <tr><td>&nbsp;&nbsp;↳ but the device is roaming — scored as likely travel</td><td>+15</td></tr>
+      <tr><td>Device never seen on this account</td><td>+20</td></tr>
+      <tr><td>Device is roaming</td><td>+10</td></tr>
+      <tr><td>Claimed location partially matches</td><td>+15</td></tr>
+    </table>
+    <div class="thresholds">
+      <span><span class="pill allow">ALLOW</span> &nbsp;0 – 29</span>
+      <span><span class="pill step">STEP-UP</span> &nbsp;30 – 69</span>
+      <span><span class="pill block">BLOCK</span> &nbsp;70+</span>
+    </div>
+    <div class="callout">
+      <b>No single signal can block.</b> The largest single score is +45 — a BLOCK needs 70, so it always takes at least two corroborating signals. A VPN, travel, or a lone location mismatch lands in STEP-UP (extra verification), never an outright BLOCK.
+    </div>
+  </div>
+</section>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "base",
+    themeVariables: {
+      fontFamily: "IBM Plex Sans, system-ui, sans-serif",
+      fontSize: "14px",
+      primaryColor: "#e4f1eb",
+      primaryBorderColor: "#0b6b4f",
+      primaryTextColor: "#15201b",
+      lineColor: "#4b5a52",
+      secondaryColor: "#f4f7f5",
+      tertiaryColor: "#ffffff",
+      actorBkg: "#e4f1eb",
+      actorBorder: "#0b6b4f",
+      actorTextColor: "#15201b",
+      signalColor: "#4b5a52",
+      signalTextColor: "#15201b",
+      noteBkgColor: "#f7ecdb",
+      noteBorderColor: "#b06a12",
+      noteTextColor: "#15201b"
+    },
+    flowchart: { curve: "basis", nodeSpacing: 40, rankSpacing: 55, htmlLabels: true },
+    sequence: { actorMargin: 46, boxMargin: 10, mirrorActors: false, noteMargin: 12, messageMargin: 34 }
+  });
+</script>
+</body>
+</html>
