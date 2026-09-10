@@ -4,6 +4,9 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // The interactive walkthrough is served at "/" (frontend/dist/index.html,
+  // committed separately). This React prototype is served under "/app/".
+  base: '/app/',
   server: {
     port: 5173,
     proxy: {
@@ -17,6 +20,6 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: 'dist/app',
   },
 })
