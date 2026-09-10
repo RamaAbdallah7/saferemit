@@ -116,6 +116,47 @@ flowchart LR
   </pre>
 </section>
 
+<!-- ============ 2b · TIERED ARCHITECTURE ============ -->
+<section class="board" id="tiers">
+  <p class="eyebrow">SafeRemit · deployment view</p>
+  <h1>Presentation · Application · Data</h1>
+  <p class="sub">The same system drawn as tiers. The prototype runs on mock scenario fixtures; the data tier is where a production deployment keeps device history and the decision audit log (shown dashed).</p>
+  <pre class="mermaid">
+flowchart TB
+    U(["Customer"]) --> UI
+
+    subgraph PRES["① PRESENTATION"]
+      UI["Enterprise app · bank / mobile-money / remittance<br/>prototype: React demo UI"]
+    end
+
+    subgraph APP["② APPLICATION · SafeRemit decisioning service (FastAPI)"]
+      direction TB
+      API["POST /api/decide"] --> CORE["LangGraph agent + rules engine + reconcile<br/>picks which checks to run · scores 0–100 · stricter verdict wins"]
+    end
+
+    subgraph DATA["③ DATA"]
+      DB[("Device + account history<br/>decision audit log")]
+    end
+
+    subgraph EXT["EXTERNAL · network &amp; AI"]
+      direction TB
+      NAC["Nokia Network-as-Code — CAMARA APIs<br/>SIM Swap · Device Status · Location · Number"]
+      GEM["Google AI Studio · Gemini<br/>general model · JSON verdict"]
+    end
+
+    UI -->|"POST /api/decide"| API
+    CORE -->|"verdict + reasoning trace"| UI
+    CORE -.->|"real-time signals"| NAC
+    CORE -.->|"escalation only"| GEM
+    CORE -->|"reads / writes"| DB
+
+    classDef ext fill:#f4f7f5,stroke:#8a988f,color:#4b5a52;
+    class NAC,GEM ext;
+    classDef planned fill:#ffffff,stroke:#8a988f,stroke-dasharray:4 3,color:#4b5a52;
+    class DB planned;
+  </pre>
+</section>
+
 <!-- ============ 3 · AGENT DECISION GRAPH ============ -->
 <section class="board" id="agent">
   <p class="eyebrow">SafeRemit · the agent</p>
@@ -188,7 +229,7 @@ flowchart TD
 </section>
 
 <script>
-  // ?only=journey|architecture|agent|detail — isolate one board, no card chrome, for image export
+  // ?only=journey|architecture|tiers|agent|detail — isolate one board, no card chrome, for image export
   (function(){
     var only = new URLSearchParams(location.search).get("only");
     if(!only) return;

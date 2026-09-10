@@ -1,0 +1,222 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SafeRemit UML Diagrams</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --ink0:#100c08; --ink1:#17120d; --ink2:#201a13;
+    --paper:#f0e9dd; --paper-dim:#c8bb9f; --paper-faint:#9a8b76;
+    --rule:#2c2620;
+    --gold:#d9b779; --gold-bright:#f2d6a0; --gold-deep:#8a6d3c;
+    --brick:#cf5842; --clay:#d68b4e; --moss:#8aa06a;
+    --serif:"Instrument Serif", Georgia, serif;
+    --sans:"Hanken Grotesk", -apple-system, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--ink0); color:var(--paper); font-family:var(--sans);}
+  .board{ width:1100px; padding:50px 50px 60px; background: radial-gradient(1200px 500px at 20% -10%, rgba(217,183,121,0.06), transparent 60%), var(--ink0); }
+  .board.wide{ width:1260px; }
+  .kicker{font-family:var(--mono); letter-spacing:.14em; text-transform:uppercase; font-size:12.5px; color:var(--gold); margin:0 0 10px;}
+  h1{font-family:var(--serif); font-weight:400; font-size:38px; margin:0 0 8px; color:var(--paper);}
+  h1 em{color:var(--gold-bright); font-style:italic;}
+  .sub{color:var(--paper-dim); font-size:14px; max-width:82ch; line-height:1.6; margin:0 0 40px;}
+
+  /* ---------- Activity diagram (flow, UML notation) ---------- */
+  .flow{display:flex; flex-direction:column; align-items:center; gap:0;}
+  .node{ font-family:var(--sans); font-size:13.5px; text-align:center; }
+  .act{ border:1px solid var(--rule); background:var(--ink1); border-radius:10px; padding:12px 18px; min-width:260px; color:var(--paper); }
+  .act .tag{ display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); margin-bottom:4px; }
+  .connector{ width:1px; height:26px; background:var(--rule); position:relative; }
+  .connector::after{ content:""; position:absolute; left:-4px; bottom:-1px; border:4px solid transparent; border-top-color:var(--rule); }
+  .startnode{ width:22px; height:22px; border-radius:50%; background:var(--gold-bright); box-shadow:0 0 0 1px var(--gold-deep); }
+  .endnode{ width:24px; height:24px; border-radius:50%; border:2px solid var(--gold-bright); display:flex; align-items:center; justify-content:center; }
+  .endnode::after{ content:""; width:12px; height:12px; border-radius:50%; background:var(--gold-bright); }
+  .bar{ width:560px; height:5px; background:var(--gold-deep); border-radius:2px; }
+  .fork-row{ display:flex; justify-content:center; gap:20px; }
+  .fork-branch{ display:flex; flex-direction:column; align-items:center; width:270px; flex-shrink:0; }
+  .diamond-wrap{ display:flex; flex-direction:column; align-items:center; }
+  .diamond{ width:190px; height:110px; background:var(--ink1); border:1px solid var(--gold-deep); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); display:flex; align-items:center; justify-content:center; text-align:center; padding:0 30px; }
+  .diamond span{ font-family:var(--sans); font-weight:600; font-size:12px; color:var(--gold-bright); line-height:1.35; }
+  .branches{ display:flex; justify-content:center; gap:32px; margin-top:6px; align-items:flex-start; }
+  .branch{ display:flex; flex-direction:column; align-items:center; }
+  .branch-label{ font-family:var(--mono); font-size:10.5px; color:var(--paper-faint); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
+  .outcome{ border-radius:999px; padding:11px 22px; font-family:var(--mono); font-size:12.5px; font-weight:600; border:1px solid; }
+  .outcome.allow{ color:#c6d5aa; border-color:#3d4a2e; background:rgba(138,160,106,0.10); }
+  .outcome.step{ color:#eabf93; border-color:#6b4a26; background:rgba(214,139,78,0.10); }
+  .outcome.block{ color:#ee9f90; border-color:#5a2c22; background:rgba(207,88,66,0.10); }
+  .merge-line{ display:flex; justify-content:center; gap:60px; }
+  .merge-line .connector{ height:22px; }
+
+  /* ---------- Use case diagram ---------- */
+  .uc-stage{ position:relative; width:1160px; height:770px; margin:0 auto; }
+  .boundary{ position:absolute; left:230px; top:20px; width:820px; height:690px; border:1px solid var(--gold-deep); border-radius:16px; background:rgba(217,183,121,0.03); }
+  .boundary .b-label{ position:absolute; top:14px; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); }
+  .uc-oval{ position:absolute; transform:translate(-50%,-50%); width:210px; min-height:58px; border-radius:999px; border:1px solid var(--rule); background:var(--ink1); display:flex; align-items:center; justify-content:center; text-align:center; padding:6px 16px; font-size:12px; line-height:1.35; color:var(--paper); }
+  .uc-oval.internal{ border-color:var(--gold-deep); background:rgba(217,183,121,0.06); color:var(--paper-dim); }
+  .actor{ position:absolute; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:6px; width:150px; }
+  .actor .figure{ width:34px; height:50px; }
+  .actor .box{ width:120px; padding:10px 8px; border:1px solid var(--gold-deep); border-radius:8px; background:var(--ink1); text-align:center; }
+  .actor .box .stereo{ display:block; font-family:var(--mono); font-size:9px; color:var(--gold); margin-bottom:3px; }
+  .actor-label{ font-family:var(--sans); font-size:12px; font-weight:600; color:var(--paper); text-align:center; }
+  .uc-svg{ position:absolute; inset:0; }
+  .uc-svg line{ stroke:var(--rule); stroke-width:1.4; }
+</style>
+</head>
+<body>
+
+<!-- ============ ACTIVITY DIAGRAM ============ -->
+<div class="board" id="diagram-activity">
+  <p class="kicker">SafeRemit — Activity Diagram</p>
+  <h1>The decision agent, in <em>UML</em></h1>
+  <p class="sub">Standard activity-diagram notation — filled circle (start), rounded actions, diamonds (decisions), bars (fork/join for parallel work), ringed circle (end). Every label matches the real orchestrator in <code>backend/agent/orchestrator.py</code>.</p>
+
+  <div class="flow">
+    <div class="startnode"></div>
+    <div class="connector"></div>
+    <div class="act node">Remittance request submitted<br><span style="color:var(--paper-faint); font-size:11px;">(login / onboarding / transfer)</span></div>
+    <div class="connector"></div>
+    <div class="bar"></div>
+    <div class="fork-row">
+      <div class="fork-branch">
+        <div class="connector"></div>
+        <div class="act node"><span class="tag">Nokia CAMARA · live</span>Check SIM Swap status</div>
+      </div>
+      <div class="fork-branch">
+        <div class="connector"></div>
+        <div class="act node"><span class="tag">Nokia CAMARA · live</span>Check Number Verification</div>
+      </div>
+    </div>
+    <div class="fork-row" style="margin-top:6px;">
+      <div class="fork-branch"><div class="connector"></div></div>
+      <div class="fork-branch"><div class="connector"></div></div>
+    </div>
+    <div class="bar"></div>
+    <div class="connector"></div>
+    <div class="diamond-wrap">
+      <div class="diamond"><span>Early signal already risky?</span></div>
+    </div>
+    <div class="branches">
+      <div class="branch">
+        <div class="branch-label">No — clean</div>
+        <div class="connector"></div>
+        <div class="act node" style="min-width:220px;">Fast path — no escalation</div>
+      </div>
+      <div class="branch">
+        <div class="branch-label">Yes — escalate</div>
+        <div class="connector"></div>
+        <div class="bar" style="width:600px;"></div>
+        <div class="fork-row" style="margin-top:10px;">
+          <div class="fork-branch" style="width:190px;">
+            <div class="connector"></div>
+            <div class="act node" style="min-width:170px;"><span class="tag">Nokia · live</span>Device Status</div>
+          </div>
+          <div class="fork-branch" style="width:190px;">
+            <div class="connector"></div>
+            <div class="act node" style="min-width:170px;"><span class="tag">Nokia · live</span>Location Verification</div>
+          </div>
+          <div class="fork-branch" style="width:190px;">
+            <div class="connector"></div>
+            <div class="act node" style="min-width:170px;"><span class="tag">Google AI Studio</span>Gemini risk assessment</div>
+          </div>
+        </div>
+        <div class="fork-row" style="margin-top:6px;">
+          <div class="fork-branch" style="width:190px;"><div class="connector"></div></div>
+          <div class="fork-branch" style="width:190px;"><div class="connector"></div></div>
+          <div class="fork-branch" style="width:190px;"><div class="connector"></div></div>
+        </div>
+        <div class="bar" style="width:600px;"></div>
+        <div class="connector"></div>
+        <div class="act node" style="min-width:250px; max-width:280px;">Reconcile: stricter of rules score vs. Gemini verdict wins</div>
+      </div>
+    </div>
+    <div class="merge-line">
+      <div class="connector"></div>
+      <div class="connector"></div>
+    </div>
+    <div class="connector"></div>
+    <div class="diamond-wrap">
+      <div class="diamond"><span>Final risk level</span></div>
+    </div>
+    <div class="branches">
+      <div class="branch">
+        <div class="branch-label">Low</div>
+        <div class="connector"></div>
+        <div class="outcome allow">ALLOW</div>
+      </div>
+      <div class="branch">
+        <div class="branch-label">Medium</div>
+        <div class="connector"></div>
+        <div class="outcome step">STEP-UP</div>
+      </div>
+      <div class="branch">
+        <div class="branch-label">High</div>
+        <div class="connector"></div>
+        <div class="outcome block">BLOCK</div>
+      </div>
+    </div>
+    <div class="merge-line" style="gap:120px;">
+      <div class="connector"></div>
+      <div class="connector"></div>
+      <div class="connector"></div>
+    </div>
+    <div class="endnode"></div>
+  </div>
+</div>
+
+<!-- ============ USE CASE DIAGRAM ============ -->
+<div class="board wide" id="diagram-usecase">
+  <p class="kicker">SafeRemit — Use Case Diagram</p>
+  <h1>Who does <em>what</em>, through the system</h1>
+  <p class="sub">One human actor initiates a request; two external systems (CAMARA on Nokia Network-as-Code, Google AI Studio) are consulted by the agent as real-time data sources; a human reviewer only enters the picture when the two verdicts disagree.</p>
+
+  <div class="uc-stage">
+    <svg class="uc-svg" viewBox="0 0 1160 770" xmlns="http://www.w3.org/2000/svg">
+      <line x1="100" y1="140" x2="315" y2="150"></line>
+      <line x1="1030" y1="270" x2="875" y2="230"></line>
+      <line x1="1030" y1="270" x2="875" y2="320"></line>
+      <line x1="1030" y1="270" x2="345" y2="230"></line>
+      <line x1="1030" y1="270" x2="345" y2="320"></line>
+      <line x1="1030" y1="420" x2="610" y2="410"></line>
+      <line x1="1030" y1="590" x2="875" y2="590"></line>
+    </svg>
+
+    <div class="boundary"><span class="b-label">SafeRemit — fraud-decision agent</span></div>
+
+    <div class="actor" style="left:80px; top:140px;">
+      <svg class="figure" viewBox="0 0 34 50"><circle cx="17" cy="9" r="8" fill="none" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="17" x2="17" y2="34" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="22" x2="4" y2="30" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="22" x2="30" y2="30" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="34" x2="6" y2="48" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="34" x2="28" y2="48" stroke="#c8bb9f" stroke-width="2"/></svg>
+      <span class="actor-label">Remittance User</span>
+    </div>
+
+    <div class="actor" style="left:1080px; top:270px;">
+      <div class="box"><span class="stereo">«system»</span>Nokia<br>Network-as-Code</div>
+    </div>
+
+    <div class="actor" style="left:1080px; top:420px;">
+      <div class="box"><span class="stereo">«system»</span>Google AI Studio<br>(Gemini)</div>
+    </div>
+
+    <div class="actor" style="left:1080px; top:610px;">
+      <svg class="figure" viewBox="0 0 34 50"><circle cx="17" cy="9" r="8" fill="none" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="17" x2="17" y2="34" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="22" x2="4" y2="30" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="22" x2="30" y2="30" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="34" x2="6" y2="48" stroke="#c8bb9f" stroke-width="2"/><line x1="17" y1="34" x2="28" y2="48" stroke="#c8bb9f" stroke-width="2"/></svg>
+      <span class="actor-label">Fraud Ops Reviewer</span>
+    </div>
+
+    <div class="uc-oval" style="left:610px; top:150px;">Submit remittance request</div>
+
+    <div class="uc-oval" style="left:345px; top:230px;">Verify SIM swap status</div>
+    <div class="uc-oval" style="left:875px; top:230px;">Verify number</div>
+    <div class="uc-oval" style="left:345px; top:320px;">Verify device status</div>
+    <div class="uc-oval" style="left:875px; top:320px;">Verify location</div>
+
+    <div class="uc-oval" style="left:610px; top:410px;">Get AI risk assessment</div>
+    <div class="uc-oval internal" style="left:610px; top:490px;">Reconcile rules score + AI verdict</div>
+
+    <div class="uc-oval internal" style="left:345px; top:590px;">Decide: Allow / Step-up / Block</div>
+    <div class="uc-oval" style="left:875px; top:590px;">Flag disagreement for review</div>
+  </div>
+</div>
+
+</body>
+</html>

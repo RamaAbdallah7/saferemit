@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SafeRemit — Tiered architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15201b; --ink-2:#4b5a52; --ink-3:#8a988f;
+    --paper:#ffffff; --wash:#f4f7f5; --line:#dbe3de;
+    --green:#0b6b4f; --green-soft:#e4f1eb;
+    --amber:#b06a12;
+    --sans:"IBM Plex Sans", system-ui, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:#fff; color:var(--ink); font-family:var(--sans); }
+  .wrap{ width:1180px; padding:40px 44px 46px; }
+
+  .flowlabel{ font-family:var(--mono); font-size:12px; color:var(--ink-2); text-align:center; margin:0; }
+  .arrow{ text-align:center; color:var(--ink-3); font-size:19px; line-height:1; margin:5px 0; }
+  .split{ display:flex; justify-content:center; gap:64px; }
+  .split .flowlabel{ min-width:230px; }
+
+  .actor{
+    width:150px; margin:0 auto 4px; text-align:center;
+    font-family:var(--mono); font-size:13px; font-weight:600; color:var(--ink);
+    border:1.5px solid var(--green); border-radius:999px; padding:8px 0; background:var(--paper);
+  }
+
+  .tier{
+    border:1px solid var(--line); border-radius:14px; padding:16px 20px 20px; background:var(--wash);
+    position:relative;
+  }
+  .tier + .tier, .row + .tier, .tier + .row{ margin-top:0; }
+  .tier .tag{
+    font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--green); font-weight:600; display:block; margin-bottom:12px;
+  }
+  .tier .tag .muted{ color:var(--ink-3); letter-spacing:.04em; }
+
+  .chain{ display:flex; align-items:stretch; gap:0; }
+  .box{
+    flex:1; background:var(--paper); border:1.5px solid var(--green); border-radius:10px;
+    padding:12px 14px; text-align:center;
+  }
+  .box .t{ font-size:13.5px; font-weight:600; color:var(--ink); }
+  .box .d{ font-size:11.5px; color:var(--ink-2); margin-top:3px; font-family:var(--mono); }
+  .sep{ align-self:center; color:var(--ink-3); font-size:17px; padding:0 12px; flex:0 0 auto; }
+
+  .row{ display:flex; gap:26px; }
+  .row .tier{ flex:1; }
+  .tier.ext .box{ border-color:var(--ink-3); background:var(--paper); }
+  .tier.data .db{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; text-align:center;
+    border:1.5px dashed var(--ink-3); border-radius:10px; padding:18px 14px;
+    background:repeating-linear-gradient(-45deg,#fff,#fff 6px,#fafcfb 6px,#fafcfb 12px);
+    font-size:13px; color:var(--ink-2); min-height:96px;
+  }
+  .caption{
+    margin-top:22px; border-left:3px solid var(--green); background:var(--green-soft);
+    padding:11px 16px; font-size:12.5px; color:var(--ink); border-radius:0 8px 8px 0; line-height:1.5;
+  }
+  .caption b{ color:var(--green); }
+</style>
+</head>
+<body>
+<div class="wrap" id="cap">
+
+  <div class="actor">Customer</div>
+  <p class="flowlabel">enters phone number &nbsp;·&nbsp; confirms the transfer</p>
+  <div class="arrow">&darr;</div>
+
+  <!-- TIER 1 -->
+  <div class="tier">
+    <span class="tag">1 &nbsp;·&nbsp; Presentation</span>
+    <div class="chain">
+      <div class="box">
+        <div class="t">Enterprise app</div>
+        <div class="d">bank / mobile-money / remittance &nbsp;—&nbsp; prototype: React demo UI</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="split">
+    <p class="flowlabel">&darr;&nbsp; POST /api/decide<br><span style="color:#8a988f">phone · action · device · claimed location</span></p>
+    <p class="flowlabel">&uarr;&nbsp; ALLOW / STEP-UP / BLOCK<br><span style="color:#8a988f">+ full reasoning trace</span></p>
+  </div>
+
+  <!-- TIER 2 -->
+  <div class="tier">
+    <span class="tag">2 &nbsp;·&nbsp; Application <span class="muted">— SafeRemit decisioning service · FastAPI · stateless</span></span>
+    <div class="chain">
+      <div class="box"><div class="t">API</div><div class="d">POST /api/decide</div></div>
+      <div class="sep">&rarr;</div>
+      <div class="box"><div class="t">LangGraph agent</div><div class="d">picks which checks to run, in what order</div></div>
+      <div class="sep">&rarr;</div>
+      <div class="box"><div class="t">Rules engine</div><div class="d">deterministic 0–100 score</div></div>
+      <div class="sep">&rarr;</div>
+      <div class="box"><div class="t">Reconcile</div><div class="d">stricter verdict wins · disagreement &rarr; human</div></div>
+    </div>
+  </div>
+
+  <div class="split">
+    <p class="flowlabel">&darr;&nbsp; reads / writes</p>
+    <p class="flowlabel">&darr;&nbsp; real-time signals &nbsp;·&nbsp; escalation only</p>
+  </div>
+
+  <!-- TIER 3 + EXTERNAL -->
+  <div class="row">
+    <div class="tier data">
+      <span class="tag">3 &nbsp;·&nbsp; Data</span>
+      <div class="db"><span style="font-weight:600;color:#15201b">Device &amp; account history &nbsp;+&nbsp; decision audit log</span><span style="font-family:var(--mono);font-size:11px;color:#8a988f">prototype runs on mock scenario fixtures</span></div>
+    </div>
+    <div class="tier ext">
+      <span class="tag">External <span class="muted">— network &amp; AI</span></span>
+      <div class="chain">
+        <div class="box">
+          <div class="t">Nokia Network-as-Code</div>
+          <div class="d">CAMARA: SIM Swap · Device Status · Location · Number</div>
+        </div>
+        <div class="sep">&nbsp;</div>
+        <div class="box">
+          <div class="t">Google AI Studio · Gemini</div>
+          <div class="d">general model · constrained JSON verdict</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption">
+    <b>The rules engine owns the score; reconcile owns the verdict.</b> The AI is a second opinion that can only make a decision stricter, never looser. Every path degrades to rules-only if Gemini is unavailable.
+  </div>
+
+</div>
+</body>
+</html>

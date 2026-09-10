@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SafeRemit Diagrams</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --ink0:#100c08; --ink1:#17120d; --ink2:#201a13;
+    --paper:#f0e9dd; --paper-dim:#c8bb9f; --paper-faint:#9a8b76;
+    --rule:#2c2620;
+    --gold:#d9b779; --gold-bright:#f2d6a0; --gold-deep:#8a6d3c;
+    --brick:#cf5842; --brick-ink:#ee9f90;
+    --clay:#d68b4e; --clay-ink:#eabf93;
+    --moss:#8aa06a; --moss-ink:#c6d5aa;
+    --serif:"Instrument Serif", Georgia, serif;
+    --sans:"Hanken Grotesk", -apple-system, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--ink0); color:var(--paper); font-family:var(--sans);}
+  .board{
+    width:1400px; padding:70px 80px 80px;
+    background: radial-gradient(1200px 500px at 20% -10%, rgba(217,183,121,0.07), transparent 60%), var(--ink0);
+  }
+  .kicker{font-family:var(--mono); letter-spacing:.14em; text-transform:uppercase; font-size:12.5px; color:var(--gold); margin:0 0 10px;}
+  h1{font-family:var(--serif); font-weight:400; font-size:42px; margin:0 0 8px; color:var(--paper);}
+  h1 em{color:var(--gold-bright); font-style:italic;}
+  .sub{color:var(--paper-dim); font-size:15px; max-width:76ch; line-height:1.6; margin:0 0 46px;}
+
+  .row{display:flex; align-items:stretch; gap:0; margin-bottom:8px;}
+  .col{display:flex; flex-direction:column; gap:14px; justify-content:center;}
+  .node{
+    border:1px solid var(--rule); border-radius:10px; background:var(--ink1);
+    padding:16px 18px; min-width:190px;
+  }
+  .node .tag{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--paper-faint); margin-bottom:6px;}
+  .node .t{font-family:var(--sans); font-weight:600; font-size:15px; color:var(--paper);}
+  .node .d{font-size:12.5px; color:var(--paper-dim); margin-top:5px; line-height:1.5;}
+  .node.gold{border-color:var(--gold-deep); background:linear-gradient(180deg, rgba(217,183,121,0.10), rgba(217,183,121,0.03));}
+  .node.gold .t{color:var(--gold-bright);}
+  .node.brick{border-color:#5a2c22; background:rgba(207,88,66,0.08);}
+  .node.brick .t{color:var(--brick-ink);}
+  .node.clay{border-color:#6b4a26; background:rgba(214,139,78,0.08);}
+  .node.clay .t{color:var(--clay-ink);}
+  .node.moss{border-color:#3d4a2e; background:rgba(138,160,106,0.08);}
+  .node.moss .t{color:var(--moss-ink);}
+
+  .arrow{display:flex; align-items:center; justify-content:center; width:56px; color:var(--paper-faint); font-family:var(--mono); font-size:20px;}
+  .arrow.down{width:auto; height:40px; flex-direction:column;}
+
+  .stack{display:flex; flex-direction:column; align-items:center; margin:6px 0;}
+  .vline{width:1px; height:34px; background:var(--rule);}
+
+  .lane-label{font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--paper-faint); margin-bottom:10px;}
+
+  .diamond{
+    border:1px solid var(--gold-deep); background:var(--ink1); color:var(--gold-bright);
+    padding:18px 22px; border-radius:10px; font-family:var(--sans); font-weight:600; font-size:14px;
+    text-align:center; min-width:170px;
+  }
+  .diamond .d{font-family:var(--sans); font-weight:400; font-size:11.5px; color:var(--paper-faint); margin-top:6px;}
+
+  .legend{display:flex; gap:22px; margin-top:40px; font-family:var(--mono); font-size:11px; color:var(--paper-faint);}
+  .legend span{display:inline-flex; align-items:center; gap:7px;}
+  .dot{width:8px; height:8px; border-radius:50%;}
+  .dot.gold{background:var(--gold);} .dot.brick{background:var(--brick);} .dot.clay{background:var(--clay);} .dot.moss{background:var(--moss);}
+
+  .board2{margin-top:26px;}
+  .split{display:flex; gap:40px; align-items:center; justify-content:center; margin:36px 0;}
+  .vs{font-family:var(--serif); font-style:italic; font-size:26px; color:var(--paper-faint);}
+  .verdict-card{
+    border:1px solid var(--rule); border-radius:12px; background:var(--ink1); padding:22px 26px; width:280px;
+  }
+  .verdict-card .tag{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--paper-faint); margin-bottom:8px;}
+  .verdict-card .big{font-family:var(--serif); font-size:30px; color:var(--paper);}
+  .verdict-card .small{font-size:12.5px; color:var(--paper-dim); margin-top:8px; line-height:1.55;}
+  .reconcile-box{
+    border:1px solid var(--gold-deep); border-radius:14px; padding:26px 34px; text-align:center;
+    background:linear-gradient(180deg, rgba(217,183,121,0.10), rgba(217,183,121,0.02)); max-width:520px; margin:0 auto;
+  }
+  .reconcile-box .t{font-family:var(--sans); font-weight:700; color:var(--gold-bright); font-size:16px;}
+  .reconcile-box .d{color:var(--paper-dim); font-size:13px; margin-top:8px; line-height:1.6;}
+  .outputs{display:flex; gap:16px; justify-content:center; margin-top:30px;}
+  .pill{font-family:var(--mono); font-size:12px; padding:9px 18px; border-radius:999px; border:1px solid;}
+  .pill.allow{color:var(--moss-ink); border-color:#3d4a2e; background:rgba(138,160,106,0.10);}
+  .pill.step{color:var(--clay-ink); border-color:#6b4a26; background:rgba(214,139,78,0.10);}
+  .pill.block{color:var(--brick-ink); border-color:#5a2c22; background:rgba(207,88,66,0.10);}
+</style>
+</head>
+<body>
+
+<div class="board" id="diagram-architecture">
+  <p class="kicker">SafeRemit — Agent Architecture</p>
+  <h1>How a remittance request becomes a <em>decision</em></h1>
+  <p class="sub">FastAPI receives the request; a LangGraph agent orchestrates four CAMARA APIs on Nokia Network-as-Code and a Gemini reasoning step as real-time data sources — never as buttons a user clicks.</p>
+
+  <div class="row" style="align-items:center;">
+    <div class="node gold">
+      <div class="tag">Intake</div>
+      <div class="t">Remittance request</div>
+      <div class="d">login / onboarding / transfer</div>
+    </div>
+    <div class="arrow">→</div>
+
+    <div class="col">
+      <div class="lane-label">Initial checks · parallel</div>
+      <div class="node">
+        <div class="tag">CAMARA · Live</div>
+        <div class="t">SIM Swap</div>
+        <div class="d">swapped in last N hours?</div>
+      </div>
+      <div class="node">
+        <div class="tag">CAMARA · Live</div>
+        <div class="t">Number Verification</div>
+        <div class="d">is this the real device?</div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+    <div class="diamond">Escalation decision
+      <div class="d">clean → fast path<br>risky → escalate</div>
+    </div>
+    <div class="arrow">→</div>
+
+    <div class="col">
+      <div class="lane-label">Escalated checks · parallel</div>
+      <div class="node">
+        <div class="tag">CAMARA · Live</div>
+        <div class="t">Device Status</div>
+        <div class="d">roaming / connectivity</div>
+      </div>
+      <div class="node">
+        <div class="tag">CAMARA · Live</div>
+        <div class="t">Location Verification</div>
+        <div class="d">claimed vs. actual</div>
+      </div>
+      <div class="node gold">
+        <div class="tag">Google AI Studio</div>
+        <div class="t">Gemini analyst</div>
+        <div class="d">reasons over all signals</div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+    <div class="node gold" style="min-width:170px;">
+      <div class="tag">Reconcile</div>
+      <div class="t">Rules ⨯ Gemini</div>
+      <div class="d">stricter verdict wins</div>
+    </div>
+    <div class="arrow">→</div>
+
+    <div class="col">
+      <div class="node moss"><div class="t">ALLOW</div></div>
+      <div class="node clay"><div class="t">STEP-UP</div></div>
+      <div class="node brick"><div class="t">BLOCK</div></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot gold"></span> AI / reconciliation</span>
+    <span><span class="dot moss"></span> Allow</span>
+    <span><span class="dot clay"></span> Step-up</span>
+    <span><span class="dot brick"></span> Block</span>
+  </div>
+</div>
+
+<div class="board board2" id="diagram-reconcile">
+  <p class="kicker">SafeRemit — Decision Reconciliation</p>
+  <h1>Two independent verdicts, <em>one honest decision</em></h1>
+  <p class="sub">Every escalated request is scored twice — once by deterministic rules, once by an LLM reading the same signals. The system never lets the AI silently override the rules, or vice versa.</p>
+
+  <div class="split">
+    <div class="verdict-card">
+      <div class="tag">Deterministic</div>
+      <div class="big">Rules score</div>
+      <div class="small">Fixed point weights per signal (SIM swap, roaming, location mismatch, unknown device) summed to 0–100. Same input, same output, every time.</div>
+    </div>
+    <div class="vs">+</div>
+    <div class="verdict-card">
+      <div class="tag">Google AI Studio</div>
+      <div class="big">Gemini verdict</div>
+      <div class="small">Reads the same signals plus context, returns its own decision and a plain-language reason. Runs only on the escalation path.</div>
+    </div>
+  </div>
+
+  <div class="reconcile-box">
+    <div class="t">Reconciliation rule</div>
+    <div class="d">The stricter of the two verdicts wins. If they disagree, the result is flagged — never silently smoothed over — and the reasoning trace shows both.</div>
+  </div>
+
+  <div class="outputs">
+    <span class="pill allow">ALLOW</span>
+    <span class="pill step">STEP-UP</span>
+    <span class="pill block">BLOCK</span>
+  </div>
+</div>
+
+</body>
+</html>

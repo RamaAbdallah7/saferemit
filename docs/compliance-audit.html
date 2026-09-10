@@ -1,0 +1,859 @@
+<title>SafeRemit Prototype Compliance</title>
+<meta name="description" content="Line-by-line audit of SafeRemit against every GSMA MENA Ignite Prototype Phase requirement and evaluation criterion." />
+<style>
+  :root {
+    --bg: #eef2f0;
+    --surface: #ffffff;
+    --surface-2: #e7edea;
+    --border: #d2ddd7;
+    --border-strong: #b9c8c1;
+    --ink: #16211d;
+    --ink-soft: #55635d;
+    --ink-faint: #7d8b85;
+    --accent: #0f7d57;
+    --met: #1c8a5f;
+    --met-bg: #e0efe7;
+    --open: #b0700c;
+    --open-bg: #f4e9d6;
+    --verify: #436a88;
+    --verify-bg: #e2ebf1;
+    --fail: #b8433a;
+    --fail-bg: #f4e0de;
+    --shadow: 0 1px 2px rgba(20, 33, 28, 0.06), 0 8px 24px -12px rgba(20, 33, 28, 0.14);
+    --maxw: 1080px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1512;
+      --surface: #161f1c;
+      --surface-2: #1d2823;
+      --border: #2a3833;
+      --border-strong: #3a4b44;
+      --ink: #e7efec;
+      --ink-soft: #9aaaa3;
+      --ink-faint: #74847d;
+      --accent: #35c98d;
+      --met: #3ec88a;
+      --met-bg: #16281f;
+      --open: #e0a445;
+      --open-bg: #2e2415;
+      --verify: #7fa9cb;
+      --verify-bg: #172430;
+      --fail: #e46e64;
+      --fail-bg: #2d1a18;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 30px -14px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1512;
+    --surface: #161f1c;
+    --surface-2: #1d2823;
+    --border: #2a3833;
+    --border-strong: #3a4b44;
+    --ink: #e7efec;
+    --ink-soft: #9aaaa3;
+    --ink-faint: #74847d;
+    --accent: #35c98d;
+    --met: #3ec88a;
+    --met-bg: #16281f;
+    --open: #e0a445;
+    --open-bg: #2e2415;
+    --verify: #7fa9cb;
+    --verify-bg: #172430;
+    --fail: #e46e64;
+    --fail-bg: #2d1a18;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 30px -14px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 {
+    font-family: "Archivo", "IBM Plex Sans", system-ui, sans-serif;
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  a { color: var(--accent); text-underline-offset: 2px; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); }
+
+  /* ---- masthead ---- */
+  header.masthead {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: clamp(28px, 5vw, 52px) 0 clamp(22px, 4vw, 34px);
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    line-height: 1.08;
+  }
+  .standfirst {
+    margin: 14px 0 0;
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: 16px;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 26px;
+    margin-top: 22px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .meta-row b { color: var(--ink); font-weight: 600; }
+  .meta-row .mono { font-size: 12.5px; }
+
+  /* ---- summary strip ---- */
+  .tally {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .tally-inner {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+  }
+  .tally-cell {
+    background: var(--surface);
+    padding: 14px clamp(12px, 3vw, 22px);
+  }
+  .tally-num {
+    font-family: "Archivo", sans-serif;
+    font-weight: 700;
+    font-size: clamp(19px, 3.4vw, 26px);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .tally-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 6px;
+  }
+  .tally-cell.is-met .tally-num { color: var(--met); }
+  .tally-cell.is-open .tally-num { color: var(--open); }
+  .tally-cell.is-verify .tally-num { color: var(--verify); }
+
+  main { padding: clamp(32px, 6vw, 60px) 0 96px; }
+
+  section { margin-top: clamp(40px, 7vw, 68px); }
+  section:first-child { margin-top: 0; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 10px;
+    margin-bottom: 8px;
+  }
+  .sec-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: 0.08em;
+  }
+  .sec-head h2 { font-size: clamp(18px, 2.6vw, 23px); font-weight: 650; }
+  .sec-intro {
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    margin: 12px 0 20px;
+    max-width: 68ch;
+  }
+  .sec-intro .q { color: var(--ink); font-style: italic; }
+
+  /* ---- requirement rows ---- */
+  .rows { display: flex; flex-direction: column; gap: 10px; }
+  .row {
+    display: grid;
+    grid-template-columns: 4px 116px 1fr;
+    gap: 0 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .row > .stripe { background: var(--ink-faint); }
+  .row.met > .stripe { background: var(--met); }
+  .row.open > .stripe { background: var(--open); }
+  .row.verify > .stripe { background: var(--verify); }
+  .row.fail > .stripe { background: var(--fail); }
+
+  .row-status {
+    padding: 16px 0 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    align-items: flex-start;
+  }
+  .pill {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .pill.met { background: var(--met-bg); color: var(--met); }
+  .pill.open { background: var(--open-bg); color: var(--open); }
+  .pill.verify { background: var(--verify-bg); color: var(--verify); }
+  .pill.fail { background: var(--fail-bg); color: var(--fail); }
+  .row-ref {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    line-height: 1.4;
+  }
+
+  .row-body { padding: 15px 20px 16px 0; min-width: 0; }
+  .req {
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0 0 3px;
+  }
+  .req-quote {
+    color: var(--ink-soft);
+    font-size: 13px;
+    border-left: 2px solid var(--border-strong);
+    padding-left: 10px;
+    margin: 8px 0;
+  }
+  .evidence, .gap {
+    font-size: 13.5px;
+    margin: 7px 0 0;
+    display: grid;
+    grid-template-columns: 74px 1fr;
+    gap: 10px;
+  }
+  .evidence .tag, .gap .tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding-top: 3px;
+  }
+  .evidence .tag { color: var(--met); }
+  .gap .tag { color: var(--open); }
+  .row-body code {
+    font-size: 12px;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* ---- compact list variant ---- */
+  .compact { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 7px; overflow: hidden; box-shadow: var(--shadow); }
+  .compact .c-row {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 16px;
+    background: var(--surface);
+    padding: 12px 18px;
+    font-size: 13.5px;
+    align-items: start;
+  }
+  .compact .c-row .txt { color: var(--ink-soft); }
+  .compact .c-row .txt b { color: var(--ink); font-weight: 600; }
+
+  /* ---- tables ---- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 7px; box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; background: var(--surface); }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    background: var(--surface-2);
+    position: sticky;
+    top: 0;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.st { white-space: nowrap; font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.05em; }
+  td.st.met { color: var(--met); }
+  td.st.open { color: var(--open); }
+  td.st.verify { color: var(--verify); }
+  td code { font-size: 11.5px; background: var(--surface-2); padding: 1px 4px; border-radius: 3px; }
+
+  /* ---- callout ---- */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 7px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+  }
+  .callout h3 { font-size: 15px; margin-bottom: 8px; }
+  .callout .src {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+    margin-bottom: 14px;
+  }
+  .callout p { margin: 0 0 10px; font-size: 13.5px; color: var(--ink-soft); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout b { color: var(--ink); }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 32px; margin-top: 14px; }
+  .split h4 {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    margin: 0 0 8px;
+  }
+  .split .in h4 { color: var(--met); }
+  .split .out h4 { color: var(--fail); }
+  .split ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-soft); }
+  .split li { margin: 4px 0; }
+
+  /* ---- punch list ---- */
+  ol.punch { list-style: none; counter-reset: p; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  ol.punch li {
+    counter-increment: p;
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    gap: 14px;
+    align-items: start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 14px 18px;
+    box-shadow: var(--shadow);
+  }
+  ol.punch li::before {
+    content: counter(p);
+    font-family: "Archivo", sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  ol.punch .what { font-size: 13.5px; }
+  ol.punch .what b { color: var(--ink); }
+  ol.punch .what span { color: var(--ink-soft); display: block; margin-top: 2px; }
+  ol.punch .owner {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    white-space: nowrap;
+    padding-top: 3px;
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 28px 0 60px;
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-family: "IBM Plex Mono", monospace;
+    letter-spacing: 0.03em;
+  }
+
+  @media (max-width: 720px) {
+    .tally-inner { grid-template-columns: repeat(2, 1fr); }
+    .row { grid-template-columns: 4px 1fr; }
+    .row-status { flex-direction: row; align-items: center; flex-wrap: wrap; padding: 12px 16px 0; grid-column: 2; }
+    .row-body { padding: 10px 16px 16px; grid-column: 2; }
+    .evidence, .gap { grid-template-columns: 1fr; gap: 2px; }
+    .compact .c-row { grid-template-columns: 1fr; gap: 4px; }
+    .split { grid-template-columns: 1fr; }
+    ol.punch li { grid-template-columns: 24px 1fr; }
+    ol.punch .owner { grid-column: 2; padding-top: 0; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .row, ol.punch li { transition: border-color 0.15s ease; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">FikraX · Compliance Audit</p>
+    <h1>SafeRemit vs. the Prototype Phase, every line</h1>
+    <p class="standfirst">
+      A row-by-row check of the project against every mandatory requirement, restriction, rule,
+      evaluation criterion, submission field and tooling constraint published for the GSMA MENA
+      Ignite Open Gateway Hackathon 2026 Prototype Phase.
+    </p>
+    <div class="meta-row">
+      <span>Theme&nbsp;<b>4 — Secure Fintech, Payments &amp; Anti-Fraud</b></span>
+      <span>Deadline&nbsp;<b>2026-09-13, 23:59 IST</b>&nbsp;<span class="mono" id="countdown">·</span></span>
+      <span>Audit date&nbsp;<b>2026-09-01</b></span>
+      <span>Repo&nbsp;<b class="mono">RamaAbdallah7/saferemit</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="tally">
+  <div class="wrap">
+    <div class="tally-inner">
+      <div class="tally-cell is-met">
+        <div class="tally-num">9 / 9</div>
+        <div class="tally-label">Mandatory reqs + restrictions met</div>
+      </div>
+      <div class="tally-cell is-met">
+        <div class="tally-num">Pass</div>
+        <div class="tally-label">Resource &amp; Tooling Guide</div>
+      </div>
+      <div class="tally-cell is-open">
+        <div class="tally-num">5 / 11</div>
+        <div class="tally-label">Submission fields ready</div>
+      </div>
+      <div class="tally-cell is-met">
+        <div class="tally-num">0</div>
+        <div class="tally-label">Open eligibility items — team verified 2026-09-01</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section id="scope">
+    <div class="sec-head"><span class="sec-num">00</span><h2>Scope control</h2></div>
+    <p class="sec-intro">
+      The Tooling Guide's first tip: <span class="q">"Pick one focus area on day one and resist
+      scope creep — judges prefer one polished agent over five half-built ones."</span> SafeRemit is
+      already inside that line. Nothing below asks for a new feature — the remaining work is packaging.
+    </p>
+    <div class="callout">
+      <h3>Locked scope — do not widen before 2026-09-13</h3>
+      <p class="src">Source: Resource &amp; Tooling Guide §11 · §10 "Intermediate stack (Python)"</p>
+      <p>
+        <b>One agent, one decision, one corridor.</b> A LangGraph agent turns four CAMARA
+        signals into a single <code>ALLOW</code> / <code>STEP_UP</code> / <code>BLOCK</code> verdict
+        for a cross-border remittance event. Focus area: AI for fraud detection and digital identity.
+      </p>
+      <div class="split">
+        <div class="in">
+          <h4>In scope — finish these</h4>
+          <ul>
+            <li>3-minute demo video</li>
+            <li>Pitch deck exported to PDF/PPT</li>
+            <li>Source-code zip (&lt; 50 MB)</li>
+            <li>3–5 UI screenshots</li>
+            <li>Optional: one free-tier deployment for the Demo Link</li>
+          </ul>
+        </div>
+        <div class="out">
+          <h4>Out of scope — resist</h4>
+          <ul>
+            <li>Number Verification 3-legged OAuth / device consent flow</li>
+            <li>A companion mobile app</li>
+            <li>Real (non-simulator) SIM cards</li>
+            <li>Multi-corridor / multi-currency logic</li>
+            <li>Analytics dashboards, a second theme, more CAMARA APIs</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="mandatory">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Mandatory requirements</h2></div>
+    <p class="sec-intro">From the <span class="q">Problem Statement → Mandatory Requirements</span> block. All five are hard gates.</p>
+    <div class="rows">
+
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">Problem Statement<br>· Utilize CAMARA APIs</span></div>
+        <div class="row-body">
+          <p class="req">Use ≥ 1 CAMARA API available on Nokia Network-as-Code</p>
+          <p class="req-quote">"Utilize at least one CAMARA API available on the Nokia Network-as-Code platform."</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Four wired in <code>backend/camara_apis/</code>: SIM Swap, Number Verification, Device Status, Location Verification. Three run as <b>live</b> calls against the Nokia NaC Simulator gateway (<code>network-as-code.p-eu.apihub.nokia.io</code>) — endpoints logged in <code>PROTOTYPE_NOTES.md</code>. Exceeds the "≥ 1" bar and the "Good-to-Have: multiple CAMARA APIs".</span></p>
+        </div>
+      </div>
+
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">Problem Statement<br>· Build an AI Agent Layer</span></div>
+        <div class="row-body">
+          <p class="req">An AI agent layer orchestrates the APIs as real-time data sources, not user-triggered buttons</p>
+          <p class="req-quote">"…intelligently orchestrates one or more CAMARA APIs as trusted, real-time data sources rather than treating them as simple user-triggered actions" — must make intelligent decisions using network signals, automate workflows, power assistant/copilot experiences.</p>
+          <p class="evidence"><span class="tag">Evidence</span><span><code>backend/agent/orchestrator.py</code> — a LangGraph <code>StateGraph</code>: parallel <code>initial_checks</code> (Number Verification + SIM Swap) → a <b>conditional escalation edge</b> (<code>route_after_initial</code>) → <code>escalated_checks</code> (Device Status + Location) → a Gemini reasoning node → <code>finalize</code>. The agent decides which API to call; the user never picks. Output is an automated ALLOW / STEP_UP / BLOCK decision with a reasoning trace.</span></p>
+        </div>
+      </div>
+
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">Problem Statement<br>· AI agent tooling</span></div>
+        <div class="row-body">
+          <p class="req">The AI agent component uses only tools from the Resource &amp; Tooling Guide</p>
+          <p class="req-quote">"The AI agent component must be built only using the tools listed in the Resource &amp; Tooling Guide. No external tooling may be used for this component."</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Agent-layer imports are <code>langgraph</code> (Guide §2, code-first frameworks), Gemini via <code>generativelanguage.googleapis.com</code> (Guide §3, Google AI Studio), plus Python stdlib and <code>requests</code>/<code>pydantic</code> — generic libraries the Rules explicitly permit. No unlisted agent framework or model provider anywhere in <code>backend/agent/</code>. See §06 below for the full inventory.</span></p>
+        </div>
+      </div>
+
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">Problem Statement<br>· Original Solution</span></div>
+        <div class="row-body">
+          <p class="req">All submitted code is original and solves a real-world problem</p>
+          <p class="req-quote">"All submitted code must be original." · "The solution must clearly solve or improve a real-world problem."</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Git history opens 2026-08-27, inside the Jul 1 – Sep 13 window; the codebase was rewritten from scratch this cycle. Problem: SIM-swap account takeover and synthetic-identity mule onboarding in the GCC → home-country remittance corridor, which static OTP and document KYC miss in real time.</span></p>
+          <p class="gap"><span class="tag">Confirm</span><span>You self-attest original authorship at submission. AI pair-programming (Claude, Copilot, Cursor) is explicitly listed in Guide §6 — using it does not affect originality.</span></p>
+        </div>
+      </div>
+
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">Problem Statement<br>· Theme Alignment</span></div>
+        <div class="row-body">
+          <p class="req">Aligns with one of the seven themes</p>
+          <p class="req-quote">"Every submission must align with one of the seven hackathon challenge themes."</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Theme 4 — Secure Fintech, Payments &amp; Anti-Fraud Innovation. The theme's own "Potential APIs" are SIM Swap, Number Verification, Device Status — SafeRemit uses all three plus Location Verification.</span></p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="goodtohave">
+    <div class="sec-head"><span class="sec-num">02</span><h2>"Good-to-Have" strengtheners</h2></div>
+    <p class="sec-intro">Not gates, but the judging rubric rewards them. Two are already true; two are talking points for the deck rather than code changes.</p>
+    <div class="rows">
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">Good-to-Have</span></div>
+        <div class="row-body">
+          <p class="req">Multiple CAMARA APIs + intelligent orchestration across them</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Four APIs; the escalation edge means the agent pulls Device Status + Location only when the cheap checks look wrong or the action is sensitive — orchestration, not a fixed checklist.</span></p>
+        </div>
+      </div>
+      <div class="row open">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill open">Partial</span><span class="row-ref">Good-to-Have</span></div>
+        <div class="row-body">
+          <p class="req">Optimised for 5G-capable devices</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Signals used (SIM Swap, roaming, location) are network-generation agnostic and work on 4G/5G alike.</span></p>
+          <p class="gap"><span class="tag">Action</span><span>Add one deck line: on 5G, the same agent can add low-latency Device Reachability / QoD checks at transaction time. Framing only — no build.</span></p>
+        </div>
+      </div>
+      <div class="row open">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill open">Partial</span><span class="row-ref">Good-to-Have</span></div>
+        <div class="row-body">
+          <p class="req">Scalable, secure, production-ready design</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Stateless decision API, concurrent CAMARA calls, graceful degradation on every path, 29-test pytest suite, no secrets in the repo.</span></p>
+          <p class="gap"><span class="tag">Action</span><span>Not deployed; no auth/rate-limiting/audit-log yet. Present these as a one-slide "path to production" rather than attempting them now.</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="restrictions">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Restrictions</h2></div>
+    <p class="sec-intro">The four hard "Restrictions" bullets — each restates a mandatory requirement. All clear.</p>
+    <div class="compact">
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>1+ network API on Nokia NaC</b> — four wired, three live.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>Original code</b> — history from 2026-08-27, rewritten this cycle.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>One of the 7 theme categories</b> — Theme 4, set as the submission's Theme field.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>AI agent layer orchestrates 1+ CAMARA API, built only with Guide tools</b> — LangGraph + Gemini, nothing else.</span></div>
+    </div>
+  </section>
+
+  <section id="rules">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Rules</h2></div>
+    <p class="sec-intro">The nine numbered rules on the Rules tab.</p>
+    <div class="compact">
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>Team ≤ 5</b> — FikraX has 2 members.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>Work only during the allotted time</b> (Jul 1 – Sep 13, 2026) — all commits fall inside it.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>Online participation</b> — no travel required for the prototype.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>Submit within one of 7 themes</b> — Theme 4.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>Multiple submissions allowed, last one counts</b> — safe to submit a draft early and refine. Operational note, not a risk.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>New and innovative ideas, nothing copied</b> — self-attested; original problem framing and implementation.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>Developed entirely during the hackathon; open-source libraries and free services allowed</b> — satisfied.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>IP belongs to the team</b> — informational; no action.</span></div>
+      <div class="c-row"><span class="pill met">Met</span><span class="txt"><b>Agree to HackerEarth terms &amp; conditions</b> — accepted at registration (Aug 14, 2026).</span></div>
+    </div>
+  </section>
+
+  <section id="guide">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Resource &amp; Tooling Guide — full compliance</h2></div>
+    <p class="sec-intro">
+      The guide (<code>GSMA MENA Resource Guide</code>, 9 pp.) is the whitelist for the agent layer.
+      Every tool SafeRemit's agent touches, mapped to its section. Frontend/backend framework choice
+      is <em>not</em> restricted — only "the AI agent component" is.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Tool in the agent layer</th><th>Guide section</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td><code>langgraph</code> — StateGraph orchestration</td><td>§2 · Code-first agent frameworks</td><td class="st met">Listed</td><td>"Graph-based orchestration for stateful, long-running agents — built on LangChain."</td></tr>
+          <tr><td>Google AI Studio / Gemini — <code>generativelanguage.googleapis.com</code></td><td>§3 · Hosted APIs with a free tier</td><td class="st met">Listed</td><td>Guide names "Gemini 2.5 Flash and Pro". Repo default is <code>gemini-3.6-flash</code> — same API and platform. See watch-item below.</td></tr>
+          <tr><td>CAMARA APIs via Nokia Network as Code</td><td>§5 · The Trusted Data Layer</td><td class="st met">Listed</td><td>Free developer portal, Simulator sandbox.</td></tr>
+          <tr><td><code>requests</code>, <code>pydantic</code>, stdlib (<code>concurrent.futures</code>, <code>json</code>, <code>re</code>)</td><td>— generic libraries</td><td class="st met">Allowed</td><td>Rules: "You may use open source libraries." Not AI frameworks; no whitelist question.</td></tr>
+          <tr><td>FastAPI + React/Vite/Framer Motion (UI &amp; API shell)</td><td>— outside the agent layer</td><td class="st met">N/A</td><td>The restriction covers only the agent component. §6/§10 list Vercel, Render, Railway for hosting anyway.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rows" style="margin-top:14px">
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">§3 · model version</span></div>
+        <div class="row-body">
+          <p class="req">Gemini model string vs. the guide's wording</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>The whitelist entry is the <b>platform</b> — "Google AI Studio (Gemini)" — not a version. The Guide says Gemini models "<b>including</b> Gemini 2.5 Flash and Pro"; "including" is a non-exhaustive example. Google has since retired 2.5 and 2.0, so <code>gemini-3.6-flash</code> is simply what Google AI Studio serves today. Same free API key, same endpoint.</span></p>
+          <p class="gap"><span class="tag">Optional</span><span>Add one line to the deck / <code>README</code>: "LLM analyst: Google AI Studio (Gemini), model <code>gemini-3.6-flash</code> — current Flash tier; 2.5 retired by Google." Removes any room for a version nitpick. Do <b>not</b> pin to 2.5 — it no longer resolves.</span></p>
+        </div>
+      </div>
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">§11 · Tips for participants</span></div>
+        <div class="row-body">
+          <p class="req">Follows every §11 tip the judges use as a demo rubric</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>One focus area, no scope creep ✓ · each CAMARA API is a tool the agent decides to call, not a button ✓ · graceful fallback when an API or the model is rate-limited ✓ · demo data cached for when live calls fail ✓ · the agent's reasoning trace is shown on screen ✓ · free tiers, no credit card ✓ · matches §10 "Intermediate stack (Python)" ✓</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="phase1">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Phase 1 evaluation — Idea</h2></div>
+    <p class="sec-intro">
+      Already shortlisted, but the <span class="q">Pitch Deck</span> is re-read here and the same four
+      criteria carry into Phase 2. Evidence lives in the deck, not the code.
+    </p>
+    <div class="rows">
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Strong</span><span class="row-ref">Relevance</span></div>
+        <div class="row-body">
+          <p class="req">Theme alignment + regional / local context</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Theme 4. Concrete corridor: migrant-worker remittances out of the GCC — a predictable, high-value monthly flow that SIM-swap rings and mule networks target. Regionally specific, not generic.</span></p>
+        </div>
+      </div>
+      <div class="row open">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill open">Tighten</span><span class="row-ref">Impact</span></div>
+        <div class="row-body">
+          <p class="req">Scale across MENA + clear business model / socio-economic value</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Model exists — licensed per decision to remittance apps, operators and banks.</span></p>
+          <p class="gap"><span class="tag">Action</span><span>Deck needs an explicit slide: who pays, per-decision or per-seat pricing, the size of the MENA remittance-fraud loss it addresses, and the path from pilot to rollout.</span></p>
+        </div>
+      </div>
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Strong</span><span class="row-ref">Innovation</span></div>
+        <div class="row-body">
+          <p class="req">Originality + creative approach to a real regional pain point</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>Fuses four network signals a fraudster can't fake into one real-time verdict, with an LLM analyst reasoning about the <em>combination</em> and reconciling with a transparent rules score — beyond a single-API check.</span></p>
+        </div>
+      </div>
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Strong</span><span class="row-ref">Complexity &amp; Implementation</span></div>
+        <div class="row-body">
+          <p class="req">Technical depth, clear design, effective CAMARA use, feasible architecture, AI-agent design on approved tools</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>LangGraph graph with a conditional branch and an LLM node; 4 CAMARA integrations; 29 tests; architecture diagram in the deck and <code>README</code>. The "approved tools" sub-clause is covered in §05.</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="phase2">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Phase 2 evaluation — Live Demo</h2></div>
+    <p class="sec-intro">The six criteria the working prototype is scored on. Technical side is strong; the gaps are all presentation and commercial framing.</p>
+    <div class="rows">
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Strong</span><span class="row-ref">Innovation &amp; Originality</span></div>
+        <div class="row-body"><p class="req">Creativity, unique application of Open Gateway APIs</p>
+        <p class="evidence"><span class="tag">Evidence</span><span>Signal-fusion + LLM-analyst-vs-rules reconciliation; the "stricter verdict wins, disagreement flagged for human review" design is distinctive.</span></p></div>
+      </div>
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Strong</span><span class="row-ref">Impact</span></div>
+        <div class="row-body"><p class="req">Solves a real MENA problem, delivers user/business/society value</p>
+        <p class="evidence"><span class="tag">Evidence</span><span>Stops account-takeover and mule onboarding before money moves; protects legitimate users with STEP_UP instead of blunt blocking.</span></p></div>
+      </div>
+      <div class="row open">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill open">Tighten</span><span class="row-ref">Scalability &amp; Commercial Viability</span></div>
+        <div class="row-body"><p class="req">Large-scale adoption, sustainable model, commercial readiness beyond the hackathon</p>
+        <p class="gap"><span class="tag">Action</span><span>Same slide as Phase 1 "Impact": pricing, target buyers, pilot → production plan, and why per-decision licensing scales with transaction volume.</span></p></div>
+      </div>
+      <div class="row open">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill open">Note</span><span class="row-ref">Technical Feasibility &amp; API Usage</span></div>
+        <div class="row-body"><p class="req">Quality/depth of CAMARA integration, prototype stability, smooth UX</p>
+        <p class="evidence"><span class="tag">Evidence</span><span>3 of 4 APIs live against the Simulator; concurrent calls; end-to-end BLOCK path ~3 s; per-signal live/mock badges in the UI.</span></p>
+        <p class="gap"><span class="tag">Disclose</span><span>Number Verification needs CAMARA 3-legged OAuth (device consent) and degrades to mock — call this out plainly in the video and deck as a known, documented limitation, not a bug.</span></p></div>
+      </div>
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Strong</span><span class="row-ref">Agentic AI &amp; Multi-API Orchestration</span></div>
+        <div class="row-body"><p class="req">Intelligent orchestration of 1+ CAMARA API; effective use of AI agents for automation and decisions</p>
+        <p class="evidence"><span class="tag">Evidence</span><span>Conditional escalation across 4 APIs + an LLM reasoning node that drives the final verdict. This is the criterion SafeRemit is built around.</span></p></div>
+      </div>
+      <div class="row open">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill open">Pending</span><span class="row-ref">Presentation &amp; Pitch</span></div>
+        <div class="row-body"><p class="req">Clear structure; communicates problem, solution, technical approach, business value</p>
+        <p class="gap"><span class="tag">Action</span><span>Deck exists as <code>docs/pitch-deck.html</code>; the 3-min video is scripted (<code>demo/DEMO_SCRIPT.md</code>) but not recorded. Both are on the punch list.</span></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="deliverables">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Submission-format deliverables</h2></div>
+    <p class="sec-intro">The three-column infographic on the <span class="q">Submission Format</span> tab defines what each deliverable must contain.</p>
+    <div class="rows">
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">01 · Idea Capture Template</span></div>
+        <div class="row-body">
+          <p class="req">MS Word / PDF — idea name, submitter details, summary, project type &amp; GSMA pillar, theme, API usage</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>This was the Phase 1 artifact; it is attached to the Prototype submission automatically as the <b>Parent Submission</b> ("SafeRemit — AI-Orchestrated Anti-Fraud Layer for Cross-Border Remittances"). No re-upload field in the Prototype form.</span></p>
+        </div>
+      </div>
+      <div class="row open">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill open">Partial</span><span class="row-ref">02 · Pitch Deck (PPT)</span></div>
+        <div class="row-body">
+          <p class="req">Must cover: problem &amp; context · proposed solution &amp; API usage · <b>AI agent design + orchestration approach + which Guide tools</b> · technical architecture · business model &amp; monetization · demo screenshots or video links · team bios &amp; roles</p>
+          <p class="evidence"><span class="tag">Have</span><span><code>docs/pitch-deck.html</code> — self-contained, control-room palette, architecture diagram.</span></p>
+          <p class="gap"><span class="tag">Action</span><span>(a) Export to PDF (print → Save as PDF) or PPT, ≤ 50 MB. (b) Verify it contains the <b>team bios &amp; roles</b> slide and an explicit <b>tools-from-the-Guide</b> line. (c) Add the business-model / monetization slide flagged in §06–§07.</span></p>
+        </div>
+      </div>
+      <div class="row open">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill open">Open</span><span class="row-ref">03 · Virtual Demo</span></div>
+        <div class="row-body">
+          <p class="req">Screen-recorded video, max 3 min — working prototype + API calls + UI/UX · link to code repo · demo descriptions &amp; commercial-value summaries · API-usage synopsis · business-impact statements</p>
+          <p class="evidence"><span class="tag">Have</span><span>Shot-by-shot script in <code>demo/DEMO_SCRIPT.md</code> (hits all three scenarios + the graceful-degradation path). Repo link ready.</span></p>
+          <p class="gap"><span class="tag">Action</span><span>Record it. The "commercial-value / API-synopsis / business-impact" text goes in the <b>Description</b> and <b>Demo descriptions</b> form fields, not the video.</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="fields">
+    <div class="sec-head"><span class="sec-num">09</span><h2>Submission form — all 11 fields</h2></div>
+    <p class="sec-intro">The exact fields in the "Create submission" dialog (Prototype Phase). Only <b>Snapshots</b> is optional.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>#</th><th>Field</th><th>Rule / limit</th><th>Status</th><th>What's needed</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Title</td><td>text</td><td class="st met">Ready</td><td>"SafeRemit — AI-Orchestrated Anti-Fraud Layer for Cross-Border Remittances"</td></tr>
+          <tr><td>2</td><td>Description</td><td>rich text</td><td class="st met">Ready</td><td>Adapt from <code>README</code>; fold in the API-usage synopsis + business-impact lines.</td></tr>
+          <tr><td>3</td><td>Parent Submission</td><td>dropdown</td><td class="st met">Ready</td><td>Only option is the Idea-Phase entry — select it.</td></tr>
+          <tr><td>4</td><td>Theme</td><td>1 of 7</td><td class="st met">Ready</td><td>"4. Secure Fintech, Payments &amp; Anti-Fraud Innovation"</td></tr>
+          <tr><td>5</td><td>Snapshots</td><td>JPG/PNG, ≤ 3 MB each · optional</td><td class="st open">To make</td><td>3–5 screenshots: ALLOW, BLOCK, STEP_UP verdicts + the reasoning trace + the LIVE header pill.</td></tr>
+          <tr><td>6</td><td>Video URL</td><td>link · ≤ 3 min</td><td class="st open">To make</td><td>Record per script, upload unlisted to YouTube or Drive, paste link.</td></tr>
+          <tr><td>7</td><td>Presentation</td><td>.pdf/.ppt/.pptx/.key/.odp… · ≤ 50 MB</td><td class="st open">To convert</td><td>Export <code>docs/pitch-deck.html</code> → PDF.</td></tr>
+          <tr><td>8</td><td>Demo Link</td><td>link to working demo/prototype</td><td class="st open">To decide</td><td>Best: deploy backend+frontend to Render/Railway (Guide §6). Fallback: the video URL or the repo's run instructions.</td></tr>
+          <tr><td>9</td><td>Repository URL</td><td>link</td><td class="st met">Ready</td><td><code>github.com/RamaAbdallah7/saferemit</code> — confirm it's public.</td></tr>
+          <tr><td>10</td><td>Source Code</td><td>zip/apk · ≤ 50 MB</td><td class="st open">To make</td><td>Zip the repo minus <code>node_modules</code>, <code>.venv</code>, <code>dist</code>, <code>.env</code>. Verify size.</td></tr>
+          <tr><td>11</td><td>Instructions to Run</td><td>rich text</td><td class="st met">Ready</td><td>Paste the <code>README</code> Quickstart (install, <code>uvicorn</code>, open :8000).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="eligibility">
+    <div class="sec-head"><span class="sec-num">10</span><h2>Eligibility — self-verify</h2></div>
+    <p class="sec-intro">Nothing in the repo can prove these — confirmed directly by the team on 2026-09-01.</p>
+    <div class="rows">
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">Participant Requirements</span></div>
+        <div class="row-body">
+          <p class="req">Both members 18 or older at the time of registration</p>
+          <p class="req-quote">"Participants must be 18 years or older at the time of registration."</p>
+          <p class="evidence"><span class="tag">Confirmed</span><span>Verified by the team, 2026-09-01.</span></p>
+        </div>
+      </div>
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">Participant Requirements</span></div>
+        <div class="row-body">
+          <p class="req">Both members resident in an Arab League member country or Türkiye</p>
+          <p class="req-quote">"The hackathon is open to all residents of the member countries of the Arab League and Türkiye."</p>
+          <p class="evidence"><span class="tag">Confirmed</span><span>Verified by the team, 2026-09-01.</span></p>
+        </div>
+      </div>
+      <div class="row met">
+        <div class="stripe"></div>
+        <div class="row-status"><span class="pill met">Met</span><span class="row-ref">Rules · team size</span></div>
+        <div class="row-body">
+          <p class="req">Team size 1–5</p>
+          <p class="evidence"><span class="tag">Evidence</span><span>FikraX = 2 members. Note: no new members can be added after Phase 1 (confirmed by an organiser in the Discussion tab).</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="punch">
+    <div class="sec-head"><span class="sec-num">11</span><h2>Open items — ordered</h2></div>
+    <p class="sec-intro">Everything not yet "Met", in the order worth doing it. None require new features.</p>
+    <ol class="punch">
+      <li><div class="what"><b>Zip the source code</b><span>Repo minus <code>node_modules</code>/<code>.venv</code>/<code>dist</code>/<code>.env</code>; confirm &lt; 50 MB. Quick, unblocks field 10.</span></div><span class="owner">~10 min</span></li>
+      <li><div class="what"><b>Export the pitch deck to PDF</b><span>Open <code>docs/pitch-deck.html</code>, print → Save as PDF. Unblocks field 7.</span></div><span class="owner">~10 min</span></li>
+      <li><div class="what"><b>Add the business-model slide</b><span>Who pays · pricing · MENA fraud-loss size · pilot → production. Closes the one recurring gap in Phase 1 and Phase 2 scoring.</span></div><span class="owner">deck</span></li>
+      <li><div class="what"><b>Check the deck has team bios + a "tools from the Guide" line</b><span>Both are named requirements in the Submission Format infographic.</span></div><span class="owner">deck</span></li>
+      <li><div class="what"><b>Capture 3–5 UI screenshots</b><span>ALLOW / BLOCK / STEP_UP + reasoning trace + LIVE pill. Field 5.</span></div><span class="owner">~15 min</span></li>
+      <li><div class="what"><b>Record the 3-minute demo video</b><span>Follow <code>demo/DEMO_SCRIPT.md</code>; upload unlisted; paste link. Field 6.</span></div><span class="owner">~1–2 hr</span></li>
+      <li><div class="what"><b>Decide the Demo Link</b><span>Deploy to Render/Railway for a live URL, or point field 8 at the video / run instructions.</span></div><span class="owner">optional deploy</span></li>
+      <li><div class="what"><b>Confirm the GitHub repo is public</b><span>Field 9 is useless if it's private.</span></div><span class="owner">~1 min</span></li>
+      <li><div class="what"><b>Add one Gemini-model line to the deck / <code>README</code></b><span>"Google AI Studio (Gemini), <code>gemini-3.6-flash</code> — current Flash tier, 2.5 retired by Google." Closes the §3 version question.</span></div><span class="owner">~2 min</span></li>
+      <li><div class="what"><b>Save a draft submission early</b><span>Last submission counts — get a draft in, then refine. Also flush the uncommitted frontend work first.</span></div><span class="owner">housekeeping</span></li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    Compiled 2026-09-01 from hackerearth.com/challenges/hackathon/mena-ignite-hackathon (Overview,
+    Problem Statement, Evaluation Criteria, Rules, Submission Format, Nokia NaC tabs + the Create-submission
+    form) and the GSMA MENA Resource &amp; Tooling Guide. Verify against the live pages before submitting.
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var deadline = new Date("2026-09-13T23:59:00+05:30").getTime();
+    var el = document.getElementById("countdown");
+    if (!el) return;
+    var days = Math.ceil((deadline - Date.now()) / 86400000);
+    el.textContent = days > 0 ? "· " + days + " days left" : "· deadline passed";
+  })();
+</script>
