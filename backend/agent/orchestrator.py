@@ -28,8 +28,11 @@ decision and flags any disagreement for human review. If Gemini is
 unconfigured or the call fails, the rules score stands alone — the demo
 never depends on the LLM.
 """
+import logging
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -50,10 +53,37 @@ from ..camara_apis.sim_swap import SimSwapClient
 SENSITIVE_ACTIONS = {"onboarding", "transfer"}
 _SEVERITY = {"ALLOW": 0, "STEP_UP": 1, "BLOCK": 2}
 
+_log = logging.getLogger("saferemit.agent")
+
 _sim_swap_client = SimSwapClient()
 _number_verification_client = NumberVerificationClient()
 _device_status_client = DeviceStatusClient()
 _location_verification_client = LocationVerificationClient()
+
+
+def _run_parallel(t0: float, jobs: List[Tuple[str, Callable[[], Any]]]) -> Dict[str, Tuple[Any, int, int]]:
+    """Run the CAMARA calls in `jobs` concurrently. Returns
+    {api_name: (result, start_ms, end_ms)} with timings measured from `t0`
+    (the graph's entry perf_counter) so the response can *show* that the
+    independent calls overlapped — real proof of parallel API activity.
+
+    Each call is logged with its worker thread id; interleaved thread ids
+    with overlapping start/end windows in the Render logs are the same
+    proof, seen from the server side.
+    """
+    def timed(name: str, fn: Callable[[], Any]) -> Tuple[Any, int, int]:
+        start = round((time.perf_counter() - t0) * 1000)
+        _log.info("CAMARA %-22s  start=%5dms  thread=%s  -> calling", name, start, threading.get_ident())
+        result = fn()
+        end = round((time.perf_counter() - t0) * 1000)
+        src = result.get("source", "?") if isinstance(result, dict) else "?"
+        _log.info("CAMARA %-22s  start=%5dms  end=%5dms  (%4dms)  thread=%s  source=%s",
+                  name, start, end, end - start, threading.get_ident(), src)
+        return result, start, end
+
+    with ThreadPoolExecutor(max_workers=max(2, len(jobs))) as pool:
+        futures = {name: pool.submit(timed, name, fn) for name, fn in jobs}
+        return {name: fut.result() for name, fut in futures.items()}
 
 
 class AgentState(TypedDict):
@@ -62,6 +92,7 @@ class AgentState(TypedDict):
     device_fingerprint: str
     claimed_location: str
     scenario: str
+    t0: float
     score: int
     trace: List[Dict[str, Any]]
     escalate: bool
@@ -70,31 +101,35 @@ class AgentState(TypedDict):
     result: Optional[Dict[str, Any]]
 
 
-def _entry(step: str, api: Optional[str], signal, points: int, reason: str, running: int) -> dict:
-    return {"step": step, "api": api, "signal": signal,
-            "points": points, "reason": reason, "running_score": running}
+def _entry(step: str, api: Optional[str], signal, points: int, reason: str, running: int,
+           timing: Optional[Tuple[int, int]] = None) -> dict:
+    e = {"step": step, "api": api, "signal": signal,
+         "points": points, "reason": reason, "running_score": running}
+    if timing is not None:
+        e["timing"] = {"start_ms": timing[0], "end_ms": timing[1]}
+    return e
 
 
 def node_initial_checks(state: AgentState) -> dict:
     """Number Verification + SIM Swap — the cheap, always-run checks. They
     only need the phone number, so they run concurrently."""
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        f_nv = pool.submit(_number_verification_client.verify,
-                           state["phone_number"], scenario=state["scenario"])
-        f_ss = pool.submit(_sim_swap_client.check,
-                           state["phone_number"], scenario=state["scenario"])
-        nv, ss = f_nv.result(), f_ss.result()
+    pn, sc = state["phone_number"], state["scenario"]
+    out = _run_parallel(state["t0"], [
+        ("number_verification", lambda: _number_verification_client.verify(pn, scenario=sc)),
+        ("sim_swap", lambda: _sim_swap_client.check(pn, scenario=sc)),
+    ])
+    (nv, nv_s, nv_e), (ss, ss_s, ss_e) = out["number_verification"], out["sim_swap"]
 
     score = state["score"]
     trace = list(state["trace"])
 
     nv_points, nv_reason = score_number_verification(nv)
     score += nv_points
-    trace.append(_entry("number_verification", "number_verification", nv, nv_points, nv_reason, score))
+    trace.append(_entry("number_verification", "number_verification", nv, nv_points, nv_reason, score, (nv_s, nv_e)))
 
     ss_points, ss_reason = score_sim_swap(ss)
     score += ss_points
-    trace.append(_entry("sim_swap", "sim_swap", ss, ss_points, ss_reason, score))
+    trace.append(_entry("sim_swap", "sim_swap", ss, ss_points, ss_reason, score, (ss_s, ss_e)))
 
     early_flag = ss["swapped"] or not nv["verified"]
     sensitive = state["action_type"] in SENSITIVE_ACTIONS
@@ -126,25 +161,26 @@ def route_after_initial(state: AgentState) -> str:
 def node_escalated_checks(state: AgentState) -> dict:
     """Device Status + Location Verification — the deeper signals, pulled
     only when the agent decided to escalate. Independent, so concurrent."""
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        f_ds = pool.submit(_device_status_client.check, state["phone_number"],
-                           state["device_fingerprint"], scenario=state["scenario"])
-        f_lv = pool.submit(_location_verification_client.verify, state["phone_number"],
-                           state["claimed_location"], scenario=state["scenario"])
-        ds, lv = f_ds.result(), f_lv.result()
+    pn, sc = state["phone_number"], state["scenario"]
+    dfp, loc = state["device_fingerprint"], state["claimed_location"]
+    out = _run_parallel(state["t0"], [
+        ("device_status", lambda: _device_status_client.check(pn, dfp, scenario=sc)),
+        ("location_verification", lambda: _location_verification_client.verify(pn, loc, scenario=sc)),
+    ])
+    (ds, ds_s, ds_e), (lv, lv_s, lv_e) = out["device_status"], out["location_verification"]
 
     score = state["score"]
     trace = list(state["trace"])
 
     ds_points, ds_reason = score_device_status(ds)
     score += ds_points
-    trace.append(_entry("device_status", "device_status", ds, ds_points, ds_reason, score))
+    trace.append(_entry("device_status", "device_status", ds, ds_points, ds_reason, score, (ds_s, ds_e)))
 
     # Location is scored with the device's roaming state in hand: a mismatch
     # on a roaming device is usually travel, not spoofing (see scoring.py).
     lv_points, lv_reason = score_location_verification(lv, roaming=ds["roaming"])
     score += lv_points
-    trace.append(_entry("location_verification", "location_verification", lv, lv_points, lv_reason, score))
+    trace.append(_entry("location_verification", "location_verification", lv, lv_points, lv_reason, score, (lv_s, lv_e)))
 
     return {"score": score, "trace": trace}
 
@@ -196,6 +232,29 @@ def node_finalize(state: AgentState) -> dict:
         if s.get("signal") and "source" in s["signal"]
     })
 
+    # Per-call timings, so a reviewer can see the independent CAMARA calls
+    # overlapped (real parallel API activity, not a serial fake).
+    timed_calls = [
+        {
+            "api": s["api"],
+            "source": (s.get("signal") or {}).get("source"),
+            "start_ms": s["timing"]["start_ms"],
+            "end_ms": s["timing"]["end_ms"],
+            "ms": s["timing"]["end_ms"] - s["timing"]["start_ms"],
+        }
+        for s in state["trace"]
+        if s.get("timing")
+    ]
+    parallel_groups = [
+        [c["api"] for c in timed_calls if c["api"] in ("number_verification", "sim_swap")],
+        [c["api"] for c in timed_calls if c["api"] in ("device_status", "location_verification")],
+    ]
+    timing = {
+        "total_ms": round((time.perf_counter() - state["t0"]) * 1000),
+        "calls": timed_calls,
+        "parallel_groups": [g for g in parallel_groups if len(g) > 1],
+    }
+
     if ai:
         mode = "gemini + rules"
     elif not state.get("ai_ran"):
@@ -220,6 +279,7 @@ def node_finalize(state: AgentState) -> dict:
         },
         "rationale": rationale["text"],
         "rationale_source": rationale["source"],
+        "timing": timing,
         "trace": state["trace"],
     }
     return {"result": result}
@@ -257,6 +317,7 @@ class SafeRemitAgent:
             "device_fingerprint": request.get("device_fingerprint", "unknown-device"),
             "claimed_location": request.get("claimed_location", "unspecified"),
             "scenario": scenario,
+            "t0": time.perf_counter(),
             "score": 0,
             "trace": [],
             "escalate": False,

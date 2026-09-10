@@ -546,3 +546,21 @@ body{
   html{ scroll-behavior: auto; }
   *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+
+/* ---- API call timeline: proof of parallel CAMARA activity ---- */
+.api-timeline{ margin: 14px 0 6px; border-top: 1px solid var(--rule-soft); padding-top: 12px; }
+.atl-head{ display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+.atl-head .mono{ font-size: 0.64rem; letter-spacing: 0.05em; color: var(--gold-deep); }
+.atl-head .atl-note{ color: var(--paper-faint); }
+.atl-row{ display: grid; grid-template-columns: 128px 1fr 120px; gap: 10px; align-items: center; margin: 5px 0; }
+.atl-name{ font-size: 0.6rem; color: var(--paper-dim); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atl-track{ position: relative; height: 10px; background: var(--rule-soft); border-radius: 3px; overflow: hidden; }
+.atl-bar{ position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.atl-bar.live{ background: var(--moss); }
+.atl-bar.mock{ background: var(--clay); opacity: 0.72; }
+.atl-ms{ font-size: 0.56rem; color: var(--paper-faint); white-space: nowrap; }
+@media (max-width: 540px){
+  .atl-row{ grid-template-columns: 92px 1fr; }
+  .atl-ms{ display: none; }
+  .atl-name{ font-size: 0.55rem; }
+}

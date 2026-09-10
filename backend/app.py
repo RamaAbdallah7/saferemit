@@ -5,6 +5,8 @@ SafeRemit API — run with:
 or, from the project root:
     python -m uvicorn backend.app:app --reload
 """
+import logging
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -15,6 +17,16 @@ from pydantic import BaseModel
 from . import config
 from .agent.orchestrator import SafeRemitAgent
 from .scenarios import list_scenarios, get_scenario
+
+# Send the "saferemit.*" loggers to stdout so the CAMARA call timeline is
+# visible in `docker logs` / the Render "Logs" tab during a live demo.
+_handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(logging.Formatter("%(asctime)s  %(name)-16s  %(message)s", "%H:%M:%S"))
+_sr_log = logging.getLogger("saferemit")
+_sr_log.setLevel(logging.INFO)
+if not _sr_log.handlers:
+    _sr_log.addHandler(_handler)
+_sr_log.propagate = False
 
 app = FastAPI(title="SafeRemit", version="0.1.0")
 

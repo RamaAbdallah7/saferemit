@@ -20,9 +20,14 @@ mode. Test with the simulator MSISDN +99999991000, not a real SIM.
 """
 from __future__ import annotations
 
+import logging
+import time
+
 import requests
 
 from .. import config
+
+_log = logging.getLogger("saferemit.camara")
 
 
 class NacError(RuntimeError):
@@ -46,10 +51,14 @@ def nac_post(path: str, payload: dict) -> dict:
         "x-rapidapi-host": config.NAC_RAPIDAPI_HOST,
         "x-rapidapi-key": config.NAC_API_KEY,
     }
+    short = path.rsplit("/camara/", 1)[-1]
+    _log.info("HTTP  POST %s  -> %s", short, config.NAC_BASE_URL)
+    t = time.perf_counter()
     try:
         resp = requests.post(
             url, json=payload, headers=headers, timeout=config.CAMARA_TIMEOUT_SECONDS
         )
+        _log.info("HTTP  %s %s  (%dms)", resp.status_code, short, round((time.perf_counter() - t) * 1000))
         resp.raise_for_status()
         return resp.json() if resp.content else {}
     except requests.HTTPError as exc:

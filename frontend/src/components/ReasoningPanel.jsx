@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import RiskGauge from "./RiskGauge";
 import TraceList from "./TraceList";
+import ApiTimeline from "./ApiTimeline";
 
 // Rationale reveal is delayed to land just after the last staggered trace
 // item finishes (see TraceList's staggerChildren/delayChildren timing).
@@ -63,6 +64,7 @@ export default function ReasoningPanel({ result, runKey, running }) {
             exit={{ opacity: 0 }}
           >
             <Assessment assessment={result.assessment} />
+            <ApiTimeline timing={result.timing} />
             <div className="rationale-label">
               Rationale <span className="mono">({result.rationale_source})</span>
             </div>
