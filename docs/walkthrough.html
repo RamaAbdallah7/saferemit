@@ -810,32 +810,7 @@
       });
     }},
 
-    /* ---------- 14 · IS THIS REAL ---------- */
-    { label:"Is any of this real?", render:function(){
-      var verify=[
-        ['Open <code>saferemit.onrender.com/api/health</code> — it returns <b>camara_mode: "live"</b> and the real Nokia gateway URL <code>network-as-code.p-eu.apihub.nokia.io</code>.'],
-        ['Run a decision on that live prototype. The response <b>trace</b> tags each signal <code>source: "live"</code>, and on a failure it carries Nokia’s <b>actual HTTP error</b> — you can’t fabricate a real 401 from Nokia’s auth.'],
-        ['Nokia’s own <b>Network-as-Code analytics</b> dashboard shows the call count (259 and rising). That’s Nokia counting the calls, not us.'],
-        ['The source is <b>public on GitHub</b> — <code>github.com/RamaAbdallah7/saferemit</code>. <code>backend/camara_apis/*.py</code> is a plain <code>requests.post()</code> to the gateway, no hardcoded returns to read.'],
-        ['<b>Google AI Studio → Usage</b> shows real Gemini request volume for the “saferemit” project.']
-      ];
-      return '<div class="wrap wide"><p class="eyebrow">How it works · the honest answer</p>'
-        +'<h2 class="disp">Is any of this real?</h2>'
-        +'<p class="lede" style="font-size:13.5px">Straight answer: this walkthrough is a <b>presentation layer</b> — the responses are simulated so it runs anywhere, in three minutes. The <b>working prototype</b> lives on the same site and makes the calls for real.</p>'
-        +'<div class="grid2" style="margin-top:16px">'
-        +'<div class="card sim"><h4 class="ch">This walkthrough — simulated</h4><p style="font-size:12.5px;color:var(--ink-2)">Client-side only. Every CAMARA and Gemini response is generated from the scenario or your sandbox toggles, and labelled “sandbox” throughout. Built for the stage, not for proof.</p></div>'
-        +'<div class="card"><h4 class="ch">The working prototype — live</h4><p style="font-size:12.5px;color:var(--ink-2)">FastAPI + LangGraph at <b>saferemit.onrender.com/app</b>. SIM Swap, Device Status and Location Verification run live against Nokia’s Network-as-Code simulator. Gemini runs live via Google AI Studio. Number Verification is a CAMARA <b>3-legged flow</b> — it is initiated from the customer’s own device, so a server can’t call it alone; the app triggers it client-side in production, and the prototype uses a cached result for that one signal by design.</p></div>'
-        +'</div>'
-        +'<div class="cta-row" style="margin-top:16px"><a class="cta" href="https://saferemit.onrender.com/app/" target="_blank" rel="noopener">Open the live prototype &rarr;</a>'
-        +'<a class="cta ghost" href="https://saferemit.onrender.com/api/health" target="_blank" rel="noopener">See /api/health &rarr;</a>'
-        +'<a class="cta ghost" href="https://github.com/RamaAbdallah7/saferemit" target="_blank" rel="noopener">Source on GitHub &rarr;</a></div>'
-        +'<h5 class="seclab" style="margin-top:18px">Verify it yourself — five ways</h5>'
-        +'<div class="verify">'+verify.map(function(v){return '<div class="vrow"><span>'+v[0]+'</span></div>';}).join("")+'</div>'
-        +'<p class="fine mono" style="margin-top:12px">The story sells it. The live endpoint proves it.</p>'
-        +'</div>';
-    }},
-
-    /* ---------- 15 · ARCHITECTURE ---------- */
+    /* ---------- 14 · ARCHITECTURE ---------- */
     { label:"How it fits together", render:function(){
       var phases=[
         ["Request",[["Ahmed’s remittance app","he taps send","gold"],["Remittance provider","runs the payment, owns the customer","gold"],["SafeRemit API","one call — “score this transaction”","hl"]]],
@@ -853,7 +828,7 @@
         +line+rolesStrip()+'</div>';
     }},
 
-    /* ---------- 16 · DEPLOY ---------- */
+    /* ---------- 15 · DEPLOY ---------- */
     { label:"Ready for a pilot", render:function(){
       var priv=[
         ["SafeRemit never receives call or message content.","APIs return capability answers — “SIM changed: yes/no” — not transcripts, contacts, or history."],
@@ -978,7 +953,7 @@
     next.disabled = state.i===SCENES.length-1;
     next.textContent = state.i===STORY_END ? T("Try the sandbox","صندوق التجربة")+" →" : T("Next","التالي")+" →";
     buildDots();
-    document.getElementById("foot").textContent = "SafeRemit · hackathon prototype · CAMARA + Nokia Network as Code + Gemini · this walkthrough is simulated · the live prototype at saferemit.onrender.com is not";
+    document.getElementById("foot").textContent = "SafeRemit · GSMA MENA Ignite · CAMARA + Nokia Network as Code + Gemini · github.com/RamaAbdallah7/saferemit";
     window.scrollTo(MOTION ? {top:0,behavior:"smooth"} : 0, 0);
   }
 
