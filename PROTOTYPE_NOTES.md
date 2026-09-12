@@ -1,10 +1,22 @@
 # Prototype notes — read this before the Live Demo round
 
-## What's real vs. simulated
+## Two things live at the same URL
+
+- **saferemit.onrender.com** — an interactive walkthrough (`frontend/dist/index.html`
+  / `docs/walkthrough.html`). Presentation layer only: every number on screen is
+  simulated client-side, so it runs anywhere with no backend calls. It exists to
+  tell the story in three minutes.
+- **saferemit.onrender.com/app** — the actual prototype described below. Real
+  `/api/decide` calls, real CAMARA responses.
+
+Don't conflate the two when talking to a judge: "the demo" in conversation
+usually means the walkthrough; "the prototype" means `/app`.
+
+## What's real vs. simulated (in the `/app` prototype)
 
 - **Real:** the LangGraph agent, the escalation logic, the 0-100 rules score, the
   **Gemini analyst** and the rules-vs-AI reconciliation, the FastAPI backend, the
-  React UI, and the 25-test `pytest` suite.
+  React UI, and the 27-test `pytest` suite.
 - **Live-or-mock:** the CAMARA clients (`backend/camara_apis/*.py`). Each calls
   the real Nokia Network-as-Code endpoint **when `NAC_API_KEY` is set**, else
   returns scenario-keyed canned data. A live call that errors/times out falls
@@ -42,10 +54,12 @@ cURL snippets (API Playground → endpoint → Code Snippets), Simulator mode.
 Test: `RUN_LIVE_CAMARA=1 python -m pytest backend/tests/test_live_camara.py -v`
 
 **Number Verification** returns `{"detail":"Authorization header is missing"}`
-without an OAuth token. In production the frontend carries the redirect; for
-the demo it degrades to mock (documented, acceptable per the Tooling Guide).
-TODO: try the NaC Authorization Server (client-credentials) to get a bearer
-token for the Simulator, then pass it through `_nac.nac_post`.
+without an OAuth token — and that's not a gap to close, it's how the CAMARA spec
+works: Number Verification is a **3-legged flow**, proving a number is on *this*
+device requires the device itself to authorize on-network. A server-side key
+(what the other three APIs accept) can't do that by design. In production the
+remittance app triggers the consent redirect client-side; the prototype uses a
+cached result for that one signal and says so plainly (`source: "mock-fallback"`).
 
 ### Simulator MSISDN map (from the NaC docs)
 
@@ -76,9 +90,23 @@ The frontend was rebuilt on React + Vite specifically so this part is easy to it
 
 - `frontend/src/components/TraceList.jsx` — `listVariants`/`itemVariants` control the staggered reveal of each reasoning step. `staggerChildren` (currently 0.14s) is the gap between steps appearing.
 - `frontend/src/components/ReasoningPanel.jsx` — `RATIONALE_DELAY_S` times the rationale fade-in to land after the last trace item. If you change `staggerChildren` or the trace length assumption, update this too (it's a plain formula, not auto-derived, on purpose — easy to see and change).
-- `frontend/src/components/DecisionBadge.jsx` — the spring transition on the badge itself, plus `useCountUp` for the risk-score number animation.
+- `frontend/src/components/RiskGauge.jsx` — the risk-score number and arc animate with a plain `requestAnimationFrame` tween (not Framer Motion) so they can start exactly when the result arrives.
+- `frontend/src/components/ApiTimeline.jsx` — draws each CAMARA call as a bar on a shared time axis (start/end ms from the `/api/decide` `timing` block); overlapping bars are the parallel-call proof.
 - `frontend/src/components/ScenarioTabs.jsx` — the sliding active-tab pill, done with a shared `layoutId` (Framer Motion animates the transform between tabs automatically).
 - `frontend/src/styles.css` — colors/spacing/layout; unrelated to Framer Motion but often edited alongside it.
+
+## Proving the parallel CAMARA calls are real
+
+If a judge asks "show me the calls actually running in parallel, not just
+claimed": every `/api/decide` response carries a `timing` block —
+`{"total_ms", "calls": [{"api", "source", "start_ms", "end_ms", "ms"}], "parallel_groups"}`.
+Number Verification and SIM Swap both start within ~1 ms of each other (they're
+submitted to the same `ThreadPoolExecutor`); if they ran serially the second
+would start only after the first's `end_ms`. Same for Device Status and
+Location Verification. `backend/agent/orchestrator.py`'s `_run_parallel()` is
+where this is measured; `backend/camara_apis/_nac.py` also logs every outbound
+HTTP call with its worker thread id, so the Render "Logs" tab shows the same
+thing server-side. The `/app` UI renders this as the `ApiTimeline` bar chart.
 
 ## The AI analyst (Gemini)
 
@@ -107,7 +135,8 @@ The frontend was rebuilt on React + Vite specifically so this part is easy to it
 - [x] **Original code**, built in the Jul 1 – Sep 13 window.
 - [x] **Theme 4** — Secure Fintech, Payments & Anti-Fraud.
 - [x] Team size 2.
-- [ ] **Still to do:** record the 3-minute demo video (`demo/DEMO_SCRIPT.md`);
-  put the GitHub link in the final submission; (optional) deploy for a live link.
+- [x] Deployed live — saferemit.onrender.com / saferemit.onrender.com/app.
+- [x] GitHub link in the submission (Repository URL field).
+- [ ] **Still to do:** record the 3-minute demo video (`docs/demo-video-script.md`).
 - [ ] **Check yourselves:** both members are 18+ and resident in an Arab League
   country or Türkiye.

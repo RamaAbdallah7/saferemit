@@ -24,10 +24,20 @@ pip install -r backend/requirements.txt
 python -m uvicorn backend.app:app
 ```
 
-Open **http://127.0.0.1:8000**.
+Two things are served from the same process:
+
+- **http://127.0.0.1:8000** — an interactive walkthrough of the whole system
+  (`frontend/dist/index.html`, no backend calls — a presentation layer).
+- **http://127.0.0.1:8000/app** — the actual working prototype (React UI,
+  real `/api/decide` calls). This is what the rest of this README describes.
+
+Live deploy: **saferemit.onrender.com** (walkthrough) /
+**saferemit.onrender.com/app** (prototype).
 
 For UI development, run `npm run dev` in `frontend/` (Vite on :5173, proxies
 `/api` to the backend on :8000) alongside `uvicorn backend.app:app --reload`.
+Vite's `base` is `/app/`, so a dev build only ever touches `frontend/dist/app/`
+— the walkthrough at `frontend/dist/index.html` is a separately committed file.
 
 ### Configuration
 
@@ -40,7 +50,14 @@ runs on mock CAMARA data and a rules-only decision.
 | `GEMINI_API_KEY` | Turns on the **AI analyst**: on the escalation path, Gemini reasons about the signal combination and its verdict is reconciled with the rules score. |
 
 `GET /api/health` reports the current mode. `python -m pytest` runs the test suite
-(25 tests; live/LLM paths are opt-in via `RUN_LIVE_CAMARA=1`).
+(27 tests; live/LLM paths are opt-in via `RUN_LIVE_CAMARA=1`).
+
+Every `/api/decide` response also carries a `timing` block — each CAMARA call's
+start/end offset in milliseconds, and which calls ran in the same
+`parallel_groups`. It's there so "the checks run in parallel" is checkable, not
+just claimed: Number Verification and SIM Swap start within ~1ms of each other,
+same for Device Status and Location Verification. The backend also logs every
+CAMARA HTTP call (with its worker thread id) to stdout for the same reason.
 
 ## How it works
 
@@ -78,6 +95,11 @@ is what makes it *agentic* rather than a fixed checklist. Every path degrades to
 rules-only if Gemini is unset or slow, and to cached data if a CAMARA call fails —
 so a demo never stalls.
 
+Location is deliberately never a standalone reason to block: a full mismatch adds
++30 (STEP-UP, not BLOCK), and if the device is roaming that's read as travel and
+halved to +15 — a VPN or a trip abroad doesn't get treated like spoofing. See
+`backend/agent/scoring.py`.
+
 ## Project layout
 
 ```
@@ -94,12 +116,20 @@ backend/
   tests/                pytest — scoring, agent behaviour, reconciliation, API surface
   app.py                FastAPI — /api/decide, /api/scenarios, /api/health, serves the UI
 frontend/               React + Vite + Framer Motion
-  src/components/        ScenarioTabs · AppMock · ReasoningPanel · DecisionBadge · TraceList
-demo/DEMO_SCRIPT.md     3-minute submission-video script
+  dist/index.html        the interactive walkthrough — committed directly, not built
+  dist/app/              `npm run build` output (Vite base=/app/) — the prototype
+  src/components/        ScenarioTabs · AppMock · ReasoningPanel · RiskGauge ·
+                          TraceList · ApiTimeline (parallel-call proof) · Story
+demo/DEMO_SCRIPT.md      superseded — points to docs/demo-video-script.md
 docs/
-  pitch-deck.html       single-file pitch
-  HOW_IT_WORKS.md       plain-English walkthrough
-PROTOTYPE_NOTES.md      live vs. mock status, portal setup, rules-compliance checklist
+  walkthrough.html       source of the interactive walkthrough (same file as dist/index.html)
+  architecture.html      sequence / component / agent-graph / LLM+scoring diagrams
+  diagrams/               exported PNGs of the above, incl. a C4 container diagram
+  pitch-deck.html        single-file pitch
+  HOW_IT_WORKS.md        plain-English walkthrough
+  demo-video-script.md   the current shot-by-shot recording script
+  compliance-audit.html  line-by-line audit against the hackathon rules
+PROTOTYPE_NOTES.md       live vs. mock status, portal setup, rules-compliance checklist
 ```
 
 ## Tech stack (per the AI Resource & Tooling Guide)
@@ -121,7 +151,8 @@ agent, Gemini, and CAMARA APIs as the agent's data tools.
 ## Submission checklist
 
 - [x] Idea Capture Template — shortlisted
-- [x] Working prototype: live CAMARA calls, LLM analyst, 25 automated tests
-- [x] Pitch deck — `docs/pitch-deck.html`
-- [ ] 3-minute demo video — script in `demo/DEMO_SCRIPT.md`
-- [ ] GitHub repo link in the final submission
+- [x] Working prototype: live CAMARA calls, LLM analyst, 27 automated tests
+- [x] Deployed — saferemit.onrender.com (walkthrough) / saferemit.onrender.com/app (prototype)
+- [x] Pitch deck (submitted as `.pptx`; `docs/pitch-deck.html` is an HTML reference version)
+- [x] GitHub repo link in the submission
+- [ ] 3-minute demo video — script in `docs/demo-video-script.md`
