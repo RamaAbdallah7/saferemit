@@ -120,14 +120,12 @@ frontend/               React + Vite + Framer Motion
   dist/app/              `npm run build` output (Vite base=/app/) — the prototype
   src/components/        ScenarioTabs · AppMock · ReasoningPanel · RiskGauge ·
                           TraceList · ApiTimeline (parallel-call proof) · Story
-demo/DEMO_SCRIPT.md      superseded — points to docs/demo-video-script.md
 docs/
   walkthrough.html       source of the interactive walkthrough (same file as dist/index.html)
   architecture.html      sequence / component / agent-graph / LLM+scoring diagrams
   diagrams/               exported PNGs of the above, incl. a C4 container diagram
   pitch-deck.html        single-file pitch
   HOW_IT_WORKS.md        plain-English walkthrough
-  demo-video-script.md   the current shot-by-shot recording script
   compliance-audit.html  line-by-line audit against the hackathon rules
 PROTOTYPE_NOTES.md       live vs. mock status, portal setup, rules-compliance checklist
 ```
@@ -155,4 +153,4 @@ agent, Gemini, and CAMARA APIs as the agent's data tools.
 - [x] Deployed — saferemit.onrender.com (walkthrough) / saferemit.onrender.com/app (prototype)
 - [x] Pitch deck (submitted as `.pptx`; `docs/pitch-deck.html` is an HTML reference version)
 - [x] GitHub repo link in the submission
-- [ ] 3-minute demo video — script in `docs/demo-video-script.md`
+- [x] 3-minute demo video — recorded and submitted

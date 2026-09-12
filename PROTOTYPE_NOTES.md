@@ -137,6 +137,6 @@ thing server-side. The `/app` UI renders this as the `ApiTimeline` bar chart.
 - [x] Team size 2.
 - [x] Deployed live — saferemit.onrender.com / saferemit.onrender.com/app.
 - [x] GitHub link in the submission (Repository URL field).
-- [ ] **Still to do:** record the 3-minute demo video (`docs/demo-video-script.md`).
+- [x] 3-minute demo video — recorded and submitted.
 - [ ] **Check yourselves:** both members are 18+ and resident in an Arab League
   country or Türkiye.
